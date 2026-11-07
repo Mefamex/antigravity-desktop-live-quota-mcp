@@ -4,6 +4,12 @@
 
 ---
 
+### [2026-11-08 00:56] — 24. GitHub SEO ve Keşfedilebilirlik Konu Etiketlerinin (Topics) Eklenmesi
+- GitHub arama motoru ve Model Context Protocol (MCP) ekosistemi indekslemesi için 15 adet optimize edilmiş topic eklendi:  
+  `antigravity`, `google-antigravity`, `agy`, `mcp`, `mcp-server`, `model-context-protocol`, `gemini`, `claude`, `ai-agents`, `quota-tracker`, `status-bar`, `chrome-devtools-protocol`, `cdp`, `zero-dependencies`, `python`.
+
+---
+
 ### [2026-11-08 00:37] — 23. README.md'nin Kesin Şartnameye (README.standarts.md) Göre Yapılandırılması
 - `mfmx-project-conventions/README.standarts.md` şartnamesi referans alınarak [`README.md`](./README.md) baştan aşağı yeniden yapılandırıldı:
   1. **Standart Meta Bloğu:** Author, Website, License, Created, Updated, Stack, Platform, Status ve 2 cümlelik vurucu giriş eklendi.
