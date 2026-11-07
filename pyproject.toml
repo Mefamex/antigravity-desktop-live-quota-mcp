@@ -1,10 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "antigravity-desktop-live-quota-mcp"
 version = "1.0.0"
 description = "Zero-dependency MCP server and live UI quota badge injector for Google Antigravity Desktop"
 readme = "README.md"
+authors = [
+  { name = "Mehmet Akif AKKOÇ", email = "info@mefamex.com" }
+]
+license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = []
+keywords = [
+  "antigravity",
+  "google-antigravity",
+  "mcp",
+  "model-context-protocol",
+  "quota-tracker",
+  "status-bar",
+  "cdp"
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux"
+]
+
+[project.urls]
+Homepage = "https://github.com/Mefamex/antigravity-desktop-live-quota-mcp"
+Repository = "https://github.com/Mefamex/antigravity-desktop-live-quota-mcp.git"
+Issues = "https://github.com/Mefamex/antigravity-desktop-live-quota-mcp/issues"
 
 [tool.ruff]
 line-length = 100
