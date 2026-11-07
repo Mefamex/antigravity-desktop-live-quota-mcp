@@ -1,0 +1,11 @@
+[project]
+name = "antigravity-desktop-live-quota-mcp"
+version = "1.0.0"
+description = "Zero-dependency MCP server and live UI quota badge injector for Google Antigravity Desktop"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
