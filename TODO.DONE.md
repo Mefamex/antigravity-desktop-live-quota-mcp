@@ -4,6 +4,12 @@
 
 ---
 
+### [2026-11-08 00:11] — 21. Kullanıcının Özgün Masaüstü Ekran Görüntüsünün README'ye Entegrasyonu
+- Kullanıcının doğrudan kendi masaüstü oturumundan aldığı özgün başlık çubuğu ekran görüntüsü (`assets/preview.png`) projeye dahil edildi.
+- GitHub reposuna commitleyip pushlandı.
+
+---
+
 ### [2026-11-08 00:09] — 20. Adaptif Font Ölçekleme ve Retina Ekran Görüntüsü ile README Vitrini
 - **İri ve Belirgin Yüzde Tasarımı:** `%92` gibi kota yüzdeleri `font-size: 12px; font-weight: 700;` yapılarak uzaktan ve küçük ekranlardan bile ilk bakışta okunacak düzeye getirildi.
 - **Sistemler Arası Adaptif Tasarım:** Farklı ekran çözünürlükleri (Full HD, 2K, 4K) ve Wayland HiDPI / fractional scaling için `clamp(6px, 1vw, 12px)`, `flex-shrink: 0` ve `white-space: nowrap` kuralları eklendi; MCP sunucusunun bağımsız yapısı tamamen korundu.
