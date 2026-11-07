@@ -20,13 +20,13 @@ Antigravity Desktop uygulamasında menüler altında gizli kalan **canlı model 
 
 ## 📸 Canlı Görünüm (Live Badge Interface)
 
-```text
-[ ⚡G: %96 6.9d / %85 2:07h | Ar: %90 7.0d | C: %100 7.0d / %100 4:53h ]
-```
+<p align="center">
+  <img src="assets/preview.png" alt="Antigravity Desktop Live Quota Badge" width="100%">
+</p>
 
-- **Konum:** Üst menü çubuğunun en solunda (`margin-left: 10px; margin-right: auto;`).
-- **Genişlik:** ~387px (Pencere başlığını veya düğmeleri kapatmayan ultra-kompakt kapsül).
-- **Etkileşim:** Tek tıkla anında yenileme; üzerine gelindiğinde (hover) her modelin detaylı sıfırlanma takvimini içeren zengin araç ipucu (tooltip).
+- **Konum:** Üst menü çubuğunun menü butonlarının hemen yanında sola yaslı (`margin-left: clamp(6px, 1vw, 12px); margin-right: auto;`).
+- **Genişlik:** ~400px (Pencere başlığını veya düğmeleri sıkıştırmayan adaptif ultra-kompakt kapsül).
+- **Etkileşim:** Tek tıkla anında bulut önbelleğini temizleyip zorlamalı yenileme (`forceRefresh: true`); üzerine gelindiğinde (hover) her modelin detaylı sıfırlanma takvimini içeren zengin araç ipucu (tooltip).
 
 ---
 

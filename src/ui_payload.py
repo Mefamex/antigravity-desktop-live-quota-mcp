@@ -172,18 +172,21 @@ def build_injection_js() -> str:
             badge = document.createElement("div");
             badge.id = BADGE_ID;
             badge.style.cssText = [
-                "margin-left: 10px",
+                "margin-left: clamp(6px, 1vw, 12px)",
                 "margin-right: auto",
                 "display: inline-flex",
                 "align-items: center",
-                "gap: 8px",
+                "gap: clamp(6px, 0.8vw, 9px)",
+                "white-space: nowrap",
+                "flex-shrink: 0",
                 "font-size: 11px",
-                "font-family: ui-sans-serif, system-ui, -apple-system, sans-serif",
-                "padding: 2px 10px",
+                "font-family: inherit, ui-sans-serif, system-ui, -apple-system, sans-serif",
+                "padding: 2.5px clamp(8px, 1vw, 12px)",
                 "border-radius: 9999px",
                 "background: rgba(255, 255, 255, 0.07)",
                 "border: 1px solid rgba(255, 255, 255, 0.12)",
                 "color: #d1d5db",
+                "line-height: 1.2",
                 "app-region: no-drag",
                 "-webkit-app-region: no-drag",
                 "cursor: pointer",
@@ -313,26 +316,30 @@ def build_injection_js() -> str:
             ? "color:#d8b4fe; font-weight:700; background:rgba(192,132,252,0.2); padding:1px 4px; border-radius:4px; text-shadow:0 0 6px rgba(216,180,254,0.7);"
             : "color:#9ca3af; font-weight:500; opacity:0.8;";
 
-        const timeTagStyle = "color:#e2e8f0; font-size:9.5px; font-weight:500; opacity:0.95;";
+        const timeTagStyle = "color:#e2e8f0; font-size:9.5px; font-weight:500; opacity:0.95; margin-left:1px;";
+
+        function renderPct(val) {{
+            return `<span style="color:${{pickColor(val)}}; font-weight:700; font-size:12px; letter-spacing:-0.2px;">%${{val}}</span>`;
+        }}
 
         badge.innerHTML = `
             <div style="display:flex; align-items:center; gap:3px;">
                 <span style="${{gLabelStyle}}">⚡G:</span>
-                <span style="color:${{pickColor(geminiWeekly)}}; font-weight:600;">%${{geminiWeekly}}</span><span style="${{timeTagStyle}}">${{gWeeklyTime}}</span>
-                <span style="color:#6b7280; font-size:10px;">/</span>
-                <span style="color:${{pickColor(gemini5h)}}; font-weight:600;">%${{gemini5h}}</span><span style="${{timeTagStyle}}">${{g5hTime}}</span>
+                ${{renderPct(geminiWeekly)}}<span style="${{timeTagStyle}}">${{gWeeklyTime}}</span>
+                <span style="color:#6b7280; font-size:10px; margin:0 1px;">/</span>
+                ${{renderPct(gemini5h)}}<span style="${{timeTagStyle}}">${{g5hTime}}</span>
             </div>
-            <span style="color:#6b7280;">|</span>
+            <span style="color:#6b7280; margin:0 1px;">|</span>
             <div style="display:flex; align-items:center; gap:3px;">
                 <span style="${{arLabelStyle}}">Ar:</span>
-                <span style="color:${{pickColor(argonWeekly)}}; font-weight:600;">%${{argonWeekly}}</span><span style="${{timeTagStyle}}">${{arWeeklyTime}}</span>
+                ${{renderPct(argonWeekly)}}<span style="${{timeTagStyle}}">${{arWeeklyTime}}</span>
             </div>
-            <span style="color:#6b7280;">|</span>
+            <span style="color:#6b7280; margin:0 1px;">|</span>
             <div style="display:flex; align-items:center; gap:3px;">
                 <span style="${{cLabelStyle}}">C:</span>
-                <span style="color:${{pickColor(claudeWeekly)}}; font-weight:600;">%${{claudeWeekly}}</span><span style="${{timeTagStyle}}">${{cWeeklyTime}}</span>
-                <span style="color:#6b7280; font-size:10px;">/</span>
-                <span style="color:${{pickColor(claude5h)}}; font-weight:600;">%${{claude5h}}</span><span style="${{timeTagStyle}}">${{c5hTime}}</span>
+                ${{renderPct(claudeWeekly)}}<span style="${{timeTagStyle}}">${{cWeeklyTime}}</span>
+                <span style="color:#6b7280; font-size:10px; margin:0 1px;">/</span>
+                ${{renderPct(claude5h)}}<span style="${{timeTagStyle}}">${{c5hTime}}</span>
             </div>
         `;
         badge.title = tooltipLines.join("\\n");

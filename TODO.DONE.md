@@ -4,6 +4,14 @@
 
 ---
 
+### [2026-11-08 00:09] — 20. Adaptif Font Ölçekleme ve Retina Ekran Görüntüsü ile README Vitrini
+- **İri ve Belirgin Yüzde Tasarımı:** `%92` gibi kota yüzdeleri `font-size: 12px; font-weight: 700;` yapılarak uzaktan ve küçük ekranlardan bile ilk bakışta okunacak düzeye getirildi.
+- **Sistemler Arası Adaptif Tasarım:** Farklı ekran çözünürlükleri (Full HD, 2K, 4K) ve Wayland HiDPI / fractional scaling için `clamp(6px, 1vw, 12px)`, `flex-shrink: 0` ve `white-space: nowrap` kuralları eklendi; MCP sunucusunun bağımsız yapısı tamamen korundu.
+- **CDP ile Canlı Retina Ekran Görüntüsü:** Chrome DevTools Protocol (`Page.captureScreenshot`, `scale: 2`) kullanılarak doğrudan çalışan Antigravity Desktop penceresinden sol menüler ve canlı rozetin piksel kusursuzluğunda ekran görüntüsü alındı (`assets/preview.png`).
+- **README.md Vitrini:** ASCII metin kutusu yerine gerçek arayüz ekran görüntüsü entegre edildi.
+
+---
+
 ### [2026-11-08 00:04] — 19. Git Deposu İlklendirme, İlk Sürüm Commit ve GitHub'a Pushlanması
 - Temiz `.gitignore` dosyası oluşturuldu; Python bytecode, sanal ortam ve geçici kilit dosyaları kapsam dışı bırakıldı.
 - `git init -b main` ile depo başlatıldı ve 20 çekirdek dosya `feat: initial release of antigravity-desktop-live-quota-mcp` mesajıyla commitlendi.
