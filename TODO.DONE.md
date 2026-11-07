@@ -6,7 +6,6 @@
 
 ### [2026-11-08 00:11] — 21. Kullanıcının Özgün Masaüstü Ekran Görüntüsünün README'ye Entegrasyonu
 - Kullanıcının doğrudan kendi masaüstü oturumundan aldığı özgün başlık çubuğu ekran görüntüsü (`assets/preview.png`) projeye dahil edildi.
-- GitHub reposuna commitleyip pushlandı.
 
 ---
 
