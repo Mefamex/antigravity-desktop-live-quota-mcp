@@ -74,6 +74,19 @@
 
 ---
 
-## 6. Git & Commit Standartları
+## 6. Açık Kaynak Güvenlik ve Katalog Uyumluluğu (Ecosystem & Catalog Compliance)
+
+- **HOL Plugin Scanner & Açık Kaynak Standartları:**
+  - Proje `awesome-ai-plugins` (1.000+ ⭐) kataloğuna eklenirken otomatik CI/CD güvenlik taramasından geçirildi.
+  - Zero-dependency (sıfır harici paket) prensibine sahip projelerde dahi otomatik araçların denetim yapabilmesi için şu standart dosyaların bulunması zorunludur:
+    1. `LICENSE`: Açık lisans şeffaflığı (MIT).
+    2. `SECURITY.md`: Sorumlu güvenlik açığı bildirim kanalı (`info@mefamex.com`).
+    3. `.github/dependabot.yml`: GitHub Actions adımlarının güvenlik güncellemelerini takip etmek için.
+    4. `pyproject.toml` & `requirements.txt`: Standart Python paket indeksleme ve sıfır-bağımlılık manifestosu.
+  - Bu standartlar tamamlandıktan sonra katalog botu skorumuzu **68'den 92'ye (A+)** yükseltmiş ve tüm kapıları yeşile çevirmiştir (PR #1222).
+
+---
+
+## 7. Git & Commit Standartları
 
 Commit kuralları: https://github.com/Mefamex/mfmx-project-conventions/blob/main/GIT_STANDARDS.md adresinden okunabilir.

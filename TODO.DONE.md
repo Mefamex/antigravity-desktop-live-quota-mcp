@@ -4,6 +4,26 @@
 
 ---
 
+### [2026-11-08 02:49] — 25. awesome-ai-plugins (1.000+ ⭐) Kataloğuna Resmi PR Açılması ve 92/100 Puanla Yeşil Geçiş
+- `hashgraph-online/awesome-ai-plugins` kataloğu fork'landı ve `add-antigravity-desktop-live-quota-mcp` dalı oluşturuldu.
+- `README.md` içindeki `Community Plugins > Tools & Integrations` bölümüne standart alfabetik sırada ve resmi MCP formatında kayıt eklendi.
+- **[Pull Request #1222](https://github.com/hashgraph-online/awesome-ai-plugins/pull/1222)** açıldı.
+- Otomatik HOL Plugin Scanner CI/CD botu repoyu taradı:
+  - İlk tarama: `68 / 100` (Eksik güvenlik ve paket meta dosyaları).
+  - Giderilen eksikler: `LICENSE` (MIT), `SECURITY.md`, `.github/dependabot.yml`, `pyproject.toml` (PEP 621), `requirements.txt` (Zero-dep bildirimi).
+  - İkinci tarama: **`92 / 100 (A+)`** (Güvenlik 16/16, Best Practices 6/6, Code Quality 10/10). Tüm 5 check başarıyla yeşil yandı, merge-ready duruma getirildi.
+
+---
+
+### [2026-11-08 02:38] — 24. Hedef Odaklı Açık Kaynak Topluluk ve Mimari Paylaşımları
+- GitHub ekosistemindeki açık issue'lar taranarak doğrudan projemizle örtüşen 4 kritik noktada `@Mefamex` hesabı üzerinden mimari paylaşımlar yapıldı:
+  1. **[google-antigravity/antigravity-cli #152](https://github.com/google-antigravity/antigravity-cli/issues/152#issuecomment-6714112495):** Topluluk eklentileri resmi vitrin başlığına Desktop UI kategorisinde tanıtım eklendi.
+  2. **[google-antigravity/antigravity-cli #46](https://github.com/google-antigravity/antigravity-cli/issues/46#issuecomment-6714113961):** Masaüstü arayüzünde canlı kota görmek isteyen kullanıcılara harici bağımlılıksız açık kaynak çözüm sunuldu.
+  3. **[nickwolf/tokitty #261](https://github.com/nickwolf/tokitty/issues/261#issuecomment-6714562737):** Antigravity kota verisinin nereden çekildiğini araştıran geliştiriciye yerel ConnectRPC `RetrieveUserQuotaSummary` endpoint'i, CSRF doğrulama ve `{ forceRefresh: true }` mimarisi referans kodlarımızla açıklandı.
+  4. **[non7top/antigravity-cockpit-cli #1](https://github.com/non7top/antigravity-cockpit-cli/issues/1#issuecomment-6714563555):** Linux'ta sıfır bağımlılıklı kota izleme CLI'ı arayan geliştiriciye `main.py --status` yapısı ve `/proc` keşfi referans olarak sunuldu.
+
+---
+
 ### [2026-11-08 00:37] — 23. README.md'nin Kesin Şartnameye (README.standarts.md) Göre Yapılandırılması
 - `mfmx-project-conventions/README.standarts.md` şartnamesi referans alınarak [`README.md`](./README.md) baştan aşağı yeniden yapılandırıldı:
   1. **Standart Meta Bloğu:** Author, Website, License, Created, Updated, Stack, Platform, Status ve 2 cümlelik vurucu giriş eklendi.
