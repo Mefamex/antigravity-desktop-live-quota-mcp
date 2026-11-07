@@ -4,6 +4,17 @@
 
 ---
 
+### [2026-11-08 00:37] — 23. README.md'nin Kesin Şartnameye (README.standarts.md) Göre Yapılandırılması
+- `mfmx-project-conventions/README.standarts.md` şartnamesi referans alınarak [`README.md`](./README.md) baştan aşağı yeniden yapılandırıldı:
+  1. **Standart Meta Bloğu:** Author, Website, License, Created, Updated, Stack, Platform, Status ve 2 cümlelik vurucu giriş eklendi.
+  2. **1. Mimari ve Görsel Önizleme:** ASCII veri akış diyagramı, özgün arayüz banner'ı ve 4 kritik somut metrik (soğuk başlangıç, RAM, bağımlılık, boyut) konuldu.
+  3. **2. Belge Haritası:** Projedeki tüm çekirdek belgelerin sorumluluklarını listeleyen kılavuz tablosu oluşturuldu.
+  4. **3–7. Yetenekler, Yığın, Kurulum, Ayar ve Komutlar:** Tam hizalı tablolar, numaralı hızlı adımlar ve MCP araçları referansı tamamlandı.
+  5. **8. Güvenlik, Gizlilik ve Kırmızı Çizgiler:** Localhost-only, sıfır dış ağ, stdout izolasyonu ve binary dokunulmazlığı ilkeleri belgelendi.
+  6. **9. Lisans:** MIT Lisansı ve Mefamex telif kaydı bağlandı.
+
+---
+
 ### [2026-11-08 00:20] — 22. MFMX Proje Konvansiyonlarının Entegrasyonu
 - **Teknik Bellek:** [`NOTES.md`](./NOTES.md) eklendi; Zero-dependency Python tercihi, `forceRefresh` bulut önbellek baypası, `fcntl.flock` çekirdek kilidi ve DevToolsActivePort dinamikliği diske sabitlendi. Git standartları merkezi konvansiyon reposuna yönlendirildi.
 - **Self-Documenting Makefile:** [`Makefile`](./Makefile) yenilendi; 6 zorunlu hedef (`install`, `reinstall`, `update`, `run`, `clean`, `remove`) ve Marmelab renkli `help` menüsü entegre edildi.
