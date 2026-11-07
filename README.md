@@ -58,7 +58,6 @@ Antigravity Desktop uygulamasında menüler altında gizli kalan **canlı model 
 ```text
 antigravity-desktop-live-quota-mcp/
 ├── README.md               # Proje tanıtımı ve kullanım kılavuzu
-├── GIT_STANDARDS.md        # Conventional commits ve pre-push gatekeeping kuralları
 ├── NOTES.md                # Dahili teknik bellek ve mimari karar kayıtları
 ├── TODO.md                 # Önceliklendirilmiş geliştirme listesi
 ├── TODO.DONE.md            # Zaman damgalı tamamlanan adımlar arşivi

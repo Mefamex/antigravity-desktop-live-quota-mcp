@@ -5,11 +5,10 @@
 ---
 
 ### [2026-11-08 00:20] — 22. MFMX Proje Konvansiyonlarının Entegrasyonu
-- **Git Standartları:** [`GIT_STANDARDS.md`](./GIT_STANDARDS.md) eklendi; conventional commits (`feat`, `fix`, `style`), atomik commit ve pre-push gatekeeping kuralları bağlayıcı kılındı.
-- **Teknik Bellek:** [`NOTES.md`](./NOTES.md) eklendi; Zero-dependency Python tercihi, `forceRefresh` bulut önbellek baypası, `fcntl.flock` çekirdek kilidi ve DevToolsActivePort dinamikliği diske sabitlendi.
+- **Teknik Bellek:** [`NOTES.md`](./NOTES.md) eklendi; Zero-dependency Python tercihi, `forceRefresh` bulut önbellek baypası, `fcntl.flock` çekirdek kilidi ve DevToolsActivePort dinamikliği diske sabitlendi. Git standartları merkezi konvansiyon reposuna yönlendirildi.
 - **Self-Documenting Makefile:** [`Makefile`](./Makefile) yenilendi; 6 zorunlu hedef (`install`, `reinstall`, `update`, `run`, `clean`, `remove`) ve Marmelab renkli `help` menüsü entegre edildi.
 - **TODO.md Hizalaması:** [`TODO.md`](./TODO.md) 5 seviyeli hiyerarşiye ve konvansiyon kurallarına göre düzenlendi.
-- **Değerlendirme Sonucu:** `config.yaml` harici bağımlılık (`pyyaml`) gerektireceği için sıfır-bağımlılık ilkesi gereği uygulanmadı (`config.py` korundu); `ASK.md` ise geliştirici talimatıyla kapsam dışı bırakıldı.
+- **Değerlendirme Sonucu:** `config.yaml` harici bağımlılık (`pyyaml`) gerektireceği için sıfır-bağımlılık ilkesi gereği uygulanmadı (`config.py` korundu); `ASK.md` ve `GIT_STANDARDS.md` ise yerel depoyu şişirmemek adına kapsam dışı bırakıldı.
 
 ---
 

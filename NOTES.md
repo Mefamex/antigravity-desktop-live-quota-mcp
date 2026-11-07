@@ -71,3 +71,9 @@
 - **Tahminle Koda Girme:** Emin olmadığın API parametrelerini tahmin etmek yerine doğrudan ikili dosyayı veya protokolü incele (`strings /opt/Antigravity/resources/bin/language_server`).
 - **Idempotency Şarttır:** Tarayıcıya enjekte edilen her script, kendisinden önce çalışan zamanlayıcıları (`clearInterval`) ve gözlemcileri (`disconnect`) temizlemelidir. Asla çift döngü veya hafıza sızıntısı bırakılamaz.
 - **Her Değişiklik Canlı Kanıtla Kapanır:** Kod yazıldıktan sonra mutlaka `make test` koşturulmalı ve açık Antigravity penceresindeki DOM durumu CDP ile kontrol edilmelidir.
+
+---
+
+## 6. Git & Commit Standartları
+
+Commit kuralları: https://github.com/Mefamex/mfmx-project-conventions/blob/main/GIT_STANDARDS.md adresinden okunabilir.
