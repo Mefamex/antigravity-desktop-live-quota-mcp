@@ -4,6 +4,14 @@
 
 ---
 
+### [2026-11-08 00:04] — 19. Git Deposu İlklendirme, İlk Sürüm Commit ve GitHub'a Pushlanması
+- Temiz `.gitignore` dosyası oluşturuldu; Python bytecode, sanal ortam ve geçici kilit dosyaları kapsam dışı bırakıldı.
+- `git init -b main` ile depo başlatıldı ve 20 çekirdek dosya `feat: initial release of antigravity-desktop-live-quota-mcp` mesajıyla commitlendi.
+- `gh repo create` aracılığıyla GitHub üzerinde public repository oluşturuldu ve `main` dalı başarıyla pushlandı:  
+  👉 **`https://github.com/Mefamex/antigravity-desktop-live-quota-mcp`**
+
+---
+
 ### [2026-11-08 00:02] — 18. Geri Sayım Süre Etiketlerinin Parlaklığının ve Okunurluğunun Artırılması
 - Rozet içindeki süre etiketlerinin (`0:58h`, `6.8d`, `7.0d`) koyu gri rengi (`#9ca3af`), karanlık arayüzde rahatça okunabilmesi için açık buz beyazı tonuna (`color: #e2e8f0; font-size: 9.5px; font-weight: 500; opacity: 0.95;`) yükseltildi.
 - Ayrım çizgileri (`/` ve `|`) `#6b7280` yapılarak hiyerarşik denge sağlandı.
