@@ -1,43 +1,60 @@
 # TODO — antigravity-desktop-live-quota-mcp
 
-> **Bağlam ve Amaç:**
-> Antigravity Desktop canlı kota göstergesi ve MCP sunucusunun kullanıcı geri bildirimleri doğrultusunda filtrelenmiş ve önceliklendirilmiş geliştirme listesi.
+> **Bağlam ve Amaç (Context Anchor):**
+> Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan canlı AI model kotalarını, kalan geri sayım sürelerini ve aktif konuşulan modeli sıfır bağımlılıklı Python MCP sunucusuyla üst başlık çubuğuna (`[data-testid="title-menu-bar"]`) enjekte eden ve yapay zekâ ajanlarına anlık kota sorgulama araçları sağlayan sistemin geliştirme ve takip listesi.
 
 ---
 
-## 🚀 Aktif Geliştirme Sırası (Active Sprint)
+## 📋 Ajan & Geliştirici Kuralları
 
-- [x] **1. Dinamik Kalan Süre Sayacı (Live Countdown Tags):**
-  - Rozetteki statik `/w` ve `/5h` etiketleri yerine `resetTime` verisinden hesaplanan kalan süre gösterilecek.
-  - 5 saatlik kotalar için format: `1:20h` (1 saat 20 dakika formatında).
-  - Haftalık kotalar için format: `3.5d` (gün cinsinden tek ondalıklı format).
-  - Süre dolmuş veya hazırsa: `0m` veya `0d`.
-
-- [x] **2. Aktif Model Vurgusu (Active Model Accent Highlight):**
-  - Antigravity arayüzündeki aktif seçili modeli (`Select model` butonu) DOM üzerinden okuma.
-  - O an aktif olan model grubunun (`⚡G`, `Ar` veya `C`) rozet etiketini dikkat çekici parlak/vurgulu bir renk (örneğin neon cyan/mavi veya temaya uygun parlak vurgu) ile öne çıkarma.
-  - Pasif modeller standart yumuşak tonda kalacak.
-
-- [x] **3. Yapılandırılabilir Kritik Eşik Nabız Uyarısı (Subtle Pulse Alert):**
-  - Kota belirlenen kritik seviyenin altına indiğinde rozet çerçevesinde veya arka planında dikkat dağıtmayan zarif bir CSS nabız (pulse glow) efekti.
-  - Kritik eşik yüzdesi `config.py` içerisinde `PULSE_ALERT_THRESHOLD_PCT` (varsayılan: %15 veya %20) olarak tanımlanacak ve ortam değişkeni (`AGY_PULSE_THRESHOLD_PCT`) ile ezilebilecek.
+- **Sıralı İlerleme:** Aktif sprint listesini yukarıdan aşağıya takip et; kapsama girmeyen yan işlere dallanma.
+- **Tahmin Yasak:** Varsayımla koda girme; mimari kısıtları ve gerekçeleri [`NOTES.md`](./NOTES.md) dosyasına sabitle.
+- **Kırmızı Çizgiler:** `sudo`, veri silme (`rm`), kontrolsüz refaktör veya `git push` izinsiz çalıştırılamaz.
+- **Arşivleme Kuralı:** Biten madde `TODO.md`'den çıkarılır; zaman damgası ve doğrulama çıktısıyla [`TODO.DONE.md`](./TODO.DONE.md)'nin **en üstüne** eklenir.
+- **Doğrulama Şartı:** `make test` veya canlı çalışma kanıtı (Exit code: 0) sunulmadan görev tamamlanamaz.
 
 ---
 
-## 🔮 Gelecek Yol Haritası (Future Backlog)
+## 🚀 1. Aktif Sprint (Active Sprint)
+*Şu anda tüm çekirdek aktif sprint maddeleri tamamlanmış ve `TODO.DONE.md`'ye aktarılmıştır.*
+
+- [x] **Dinamik Kalan Süre Sayacı:** 5 saatlik kotalar için `0:50h` ve haftalık kotalar için `6.8d` / `7.0d` canlı formatı.
+- [x] **Aktif Model Vurgusu:** Açık sohbetteki modele göre ilgili etiketin (`⚡G:`) parlayıp öne çıkarılması.
+- [x] **Kritik Eşik Nabız Uyarısı:** Kota `%15`'in altına indiğinde devreye giren dikkat dağıtmayan CSS nabız efekti.
+- [x] **Anında Zorlamalı Bulut Yenilemesi:** Tıklamada `{ forceRefresh: true }` ile language_server önbellek baypası.
+- [x] **Adaptif & İri Yüzde Tasarımı:** `%91` gibi kota yüzdelerinin `12px bold` yapılması ve HiDPI adaptifliği.
+
+---
+
+## 📌 2. Yüksek Öncelik (High Priority)
+*Aktif sprint biter bitmez sırada bekleyen kritik maddeler:*
+
+*(Şu anda bloklayıcı veya yüksek öncelikli açık iş bulunmamaktadır; sistem üretim standartlarında kararlıdır).*
+
+---
+
+## 🛠️ 3. Backlog (Medium & Low Priority)
+*Sistemi tamamlayıcı geliştirmeler:*
+
+- [ ] **Kullanıcı Geri Bildirimlerine Göre İnce Ayarlar:** Canlı kullanımda ortaya çıkabilecek font/renk talepleri.
+
+---
+
+## 🔮 4. Gelecek Yol Haritası (Future Roadmap)
+*İleride değerlendirilecek uzun vadeli fikir ve genişletmeler:*
 
 - [ ] **Tüketim Hızı & Erime Tahmini (Burn-Rate Analytics):**
-  - Oturum bazlı kota düşüş hızını hesaplayarak tahmini tükenme süresini modelleme (ilerleyen sürümlerde değerlendirilecek).
-
+  - Oturum bazlı dakika başına token düşüş hızını hesaplayarak tahmini tükenme süresini modelleme (ilerleyen sürümlerde talep olursa değerlendirilecek).
 - [ ] **Tek Tıkla Brain / Scratch Temizliği:**
   - `~/.gemini/antigravity/brain/...` altındaki geçici veya eski scratch kalıntılarını arayüzden veya araçtan temizleme mekanizması (ihtiyaç halinde ele alınacak).
 
 ---
 
-## ❌ İptal Edilen / Kapsam Dışı Bırakılanlar (Rejected)
+## ❌ 5. İptal / Kapsam Dışı (Rejected)
+*Tartışılmış ancak sadelik, arayüz ferahlığı ve mimari tercih gereği vazgeçilmiş kararlar (tekrar gündeme gelmemesi için gerekçesiyle tutulur):*
 
-- ~~**Rozete Tıklayınca Hızlı Menü (Quick Switcher Dropdown):**~~ Basitlik ve kompaktlık ilkesi gereği iptal edildi; tıklama sadece yenileme yapmaya devam edecek.
-- ~~**Oturum Token Sayacı:**~~ Üst bar alanını doldurmamak adına iptal edildi.
+- ~~**Rozete Tıklayınca Hızlı Menü (Quick Switcher Dropdown):**~~ Basitlik ve kompaktlık ilkesi gereği iptal edildi; tıklama sadece anlık zorlamalı bulut yenilemesi yapmaya odaklandı.
+- ~~**Oturum Token Sayacı:**~~ Üst bar alanını gereksiz doldurmamak adına iptal edildi.
 - ~~**Bağlam Penceresi (Context Window) Barı:**~~ Odak dağıtmamak adına iptal edildi.
 - ~~**Git Durumu & Değişen Dosya Sayacı:**~~ Üst barı gereksiz doldurmamak adına iptal edildi.
 - ~~**Ajan Çalışma Durumu (Agent State Spinner):**~~ Gerek görülmediği için iptal edildi.
