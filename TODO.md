@@ -43,10 +43,10 @@
 ## 🔮 4. Gelecek Yol Haritası (Future Roadmap)
 *İleride değerlendirilecek uzun vadeli fikir ve genişletmeler:*
 
-- [ ] **Tüketim Hızı & Erime Tahmini (Burn-Rate Analytics):**
-  - Oturum bazlı dakika başına token düşüş hızını hesaplayarak tahmini tükenme süresini modelleme (ilerleyen sürümlerde talep olursa değerlendirilecek).
-- [ ] **Tek Tıkla Brain / Scratch Temizliği:**
-  - `~/.gemini/antigravity/brain/...` altındaki geçici veya eski scratch kalıntılarını arayüzden veya araçtan temizleme mekanizması (ihtiyaç halinde ele alınacak).
+- [x] **Tüketim Hızı & Erime Tahmini (Burn-Rate Analytics):**
+  - Oturum bazlı dakika başına kota düşüş hızını hesaplayarak tahmini tükenme süresini rozet tooltip'inde canlı gösterme (tamamlandı).
+- [x] **Tek Tıkla Brain / Scratch Temizliği (`clean_scratch_cache`):**
+  - `~/.gemini/antigravity/brain/...` altındaki geçici scratch kalıntılarını temizleyen güvenli MCP aracı, CLI bayrağı (`--clean-scratch`) ve Makefile hedefi (`make clean-scratch`) (tamamlandı).
 
 ---
 

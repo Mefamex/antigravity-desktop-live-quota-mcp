@@ -149,6 +149,9 @@ make verify
 
 # Ortamdaki bytecode ve önbellek kalıntılarını siler
 make clean
+
+# Antigravity brain scratch/ geçici oturum dosyalarını temizler
+make clean-scratch
 ```
 
 ### 7.2. Sunulan Model Context Protocol (MCP) Araçları
@@ -160,6 +163,7 @@ Yapay zekâ ajanları (`gemini`, `claude`, `codex`) stdio üzerinden bu araçlar
 | `get_quota_status` | `include_raw: bool`<br>`force_refresh: bool` | Gemini, Claude/GPT ve Argon kota yüzdelerini, kalan sıfırlanma sürelerini ve ham language_server çıktısını döndürür. |
 | `reinject_badge` | `force: bool` | Antigravity Desktop penceresindeki rozeti yeniden oluşturur ve tıklandığı andaki verilerle tazeler. |
 | `get_instance_status` | *(yok)* | Sürecin PID numarasını, `LEADER` / `STANDBY` rolünü ve aktif kilit dosya yolunu bildirir. |
+| `clean_scratch_cache` | `dry_run: bool`<br>`older_than_hours: float` | Antigravity brain altındaki geçici oturum scratch dosyalarını güvenle temizler. |
 
 ---
 

@@ -60,6 +60,9 @@ verify: clean test ## Commit/Push öncesi tam temizlik ve doğrulama zincirini �
 
 clean: delCache ## Geçici dosyaları, bytecode ve test kalıntılarını temizler
 
+clean-scratch: ## Antigravity brain scratch/ geçici oturum dosyalarını temizler
+	@python3 -B main.py --clean-scratch
+
 delCache: ## Derleme ve bytecode önbelleğini (__pycache__) siler
 	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	@find . -name "*.pyc" -delete 2>/dev/null || true

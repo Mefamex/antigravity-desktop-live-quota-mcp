@@ -30,6 +30,7 @@ from src.lock import LeaderLock
 from src.logger import get_logger
 from src.mcp_stdio import run_stdio_server
 from src.quota_client import fetch_live_quota
+from src.scratch_cleaner import clean_scratch_cache
 from src.ui_watcher import UIWatcherThread, inject_into_all_windows
 
 log = get_logger("main")
@@ -66,6 +67,13 @@ def _run_cli_inject() -> int:
     return 0 if res.get("ok") else 1
 
 
+def _run_cli_clean_scratch(dry_run: bool = False, hours: float = 0.0) -> int:
+    """Terminalden `--clean-scratch` ile çağrıldığında brain scratch dizinlerini temizler."""
+    res = clean_scratch_cache(older_than_hours=hours, dry_run=dry_run)
+    sys.stdout.write(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
+    return 0 if res.get("ok") else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Antigravity Desktop Canlı Kota Göstergesi ve MCP Sunucusu"
@@ -80,6 +88,22 @@ def main() -> int:
         action="store_true",
         help="Açık Antigravity Desktop penceresine rozeti tek seferlik enjekte eder.",
     )
+    parser.add_argument(
+        "--clean-scratch",
+        action="store_true",
+        help="Antigravity brain scratch/ geçici dosyalarını temizler.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Silme işlemi yapmadan temizlenecek dosya ve boyutları raporlar.",
+    )
+    parser.add_argument(
+        "--older-than-hours",
+        type=float,
+        default=0.0,
+        help="Kaç saatten eski scratch dosyalarının temizleneceği (varsayılan: 0 = tümü).",
+    )
     args = parser.parse_args()
 
     if args.status:
@@ -87,6 +111,9 @@ def main() -> int:
 
     if args.inject:
         return _run_cli_inject()
+
+    if args.clean_scratch:
+        return _run_cli_clean_scratch(dry_run=args.dry_run, hours=args.older_than_hours)
 
     # Varsayılan: MCP Stdio Sunucusu + Lider Seçimli Arka Plan UI İzleyicisi
     leader_lock = LeaderLock()

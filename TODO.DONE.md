@@ -4,6 +4,24 @@
 
 ---
 
+### [2026-11-08 03:35] — 27. Burn-Rate Tüketim Analitiği, Scratch Temizleyici Aracı ve Ajanlar Ortak Bellek Entegrasyonu
+- **Burn-Rate Analytics (Tüketim Hızı & Erime Tahmini):**
+  - `src/ui_payload.py` içine zaman damgalı kota geçmişi (`state.history`) takip mekanizması eklendi.
+  - Ölçümler arası düşüş hızından `% / saat` bazlı erime hızı ve 5 saatlik kota için `~X dk` / `~X s Y dk` tahmini tükenme süresi hesaplanarak rozet tooltip'ine dinamik olarak bağlandı.
+  - Re-enjeksiyon ve re-render döngülerinde geçmişin korunması (`prevHistory`) sağlanarak idempotency ve veri sürekliliği garanti altına alındı.
+- **Scratch & Brain Temizleyicisi (`src/scratch_cleaner.py`):**
+  - `~/.gemini/antigravity/brain/*/scratch` altındaki geçici dosyaları güvenle temizleyen sıfır bağımlılıklı modül yazıldı (asla transcript veya config dosyalarına dokunmaz).
+  - MCP JSON-RPC aracı olarak `clean_scratch_cache` şeması `src/mcp_stdio.py` içine eklendi (`dry_run` ve `older_than_hours` destekli).
+  - Terminalden çalıştırmak için `main.py --clean-scratch` ve `Makefile` içine `make clean-scratch` hedefleri tanımlandı.
+- **Ekosistem & Ortak Bellek Senkronizasyonu:**
+  - `~/.config/opencode/data/memory.jsonl` içine `antigravity-desktop-live-quota-mcp` projesinin 100/100 HOL puanı, mimari ilkeleri ve PR durumu işlendi.
+- **Doğrulama:**
+  - `tests/verify_all.py` test paketine 6. aşama olarak `tools/list` ve `clean_scratch_cache` dry-run doğrulaması eklendi.
+  - `make verify`: Soğuk başlangıç (92 ms), flock kilidi, failover, kota, CDP UI ve scratch temizliği dahil **ALL_OK**.
+  - `plugin-scanner scan .`: **100/100 (A - Excellent)**, 0 bulgu ile korundu.
+
+---
+
 ### [2026-11-08 03:23] — 26. HOL Plugin Scanner'da %100 (100/100 A+) Skora Ulaşılması ve CI/CD Scanner İş Akışının Eklenmesi
 - Scanner kuralları (`codex_plugin_scanner.checks.operational_security`) kaynak kod düzeyinde incelendi:
   - Sıfır bağımlılıklı projede `requirements.txt` dosyasının paket pinlemesi içermemesinden kaynaklanan `DEPENDENCY_LOCKFILE_MISSING` bulgusu tespit edildi.

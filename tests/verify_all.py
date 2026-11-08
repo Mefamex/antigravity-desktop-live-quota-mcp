@@ -149,10 +149,26 @@ def main() -> int:
         print(f"• Enjeksiyon Sonucu: {json.dumps(inj, ensure_ascii=False)}")
         assert inj["ok"] is True
 
+        print("\n" + "=" * 68)
+        print("6. SCRATCH TEMİZLİĞİ VE TÜM MCP ARAÇLARI (TOOLS/LIST) TESTİ")
+        print("=" * 68)
+
+        tools_resp = send_rpc(proc2, {"jsonrpc": "2.0", "id": 6, "method": "tools/list", "params": {}})
+        tool_names = [t["name"] for t in tools_resp["result"]["tools"]]
+        print(f"• Kayıtlı MCP Araçları ({len(tool_names)} adet): {', '.join(tool_names)}")
+        assert "clean_scratch_cache" in tool_names
+        assert "get_quota_status" in tool_names
+        assert "reinject_badge" in tool_names
+        assert "get_instance_status" in tool_names
+
+        clean_res = call_tool(proc2, 7, "clean_scratch_cache", {"dry_run": True})
+        print(f"• Scratch Temizlik (Dry-Run): ok={clean_res.get('ok')}, silinecek={clean_res.get('deleted_files_count')}, boyut={clean_res.get('freed_human')}")
+        assert clean_res.get("ok") is True
+
         proc2.terminate()
         proc2.wait(timeout=3)
 
-        print("\n[SUCCESS] Tüm testler (Soğuk başlangıç, Çoklu Örnek Kilit, Failover, Kota ve CDP UI) başarıyla geçti!")
+        print("\n[SUCCESS] Tüm testler (Soğuk başlangıç, Çoklu Örnek Kilit, Failover, Kota, CDP UI ve Scratch Temizliği) başarıyla geçti!")
         return 0
     finally:
         try:

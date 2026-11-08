@@ -50,6 +50,8 @@ def build_injection_js() -> str:
     const COLOR_LOW = "{config.COLOR_LOW}";
 
     // Önceki bir örnek varsa zamanlayıcılarını ve gözlemcisini temizle (Idempotency)
+    const prevHistory = window.__AGY_QUOTA_STATE__?.history || [];
+    const prevInstalledAt = window.__AGY_QUOTA_STATE__?.installedAt || Date.now();
     if (window.__AGY_QUOTA_STATE__) {{
         if (window.__AGY_QUOTA_STATE__.fetchTimerId) {{
             clearInterval(window.__AGY_QUOTA_STATE__.fetchTimerId);
@@ -69,7 +71,8 @@ def build_injection_js() -> str:
         renderTimerId: null,
         observer: null,
         lastQuota: null,
-        installedAt: Date.now()
+        installedAt: prevInstalledAt,
+        history: prevHistory
     }};
     window.__AGY_QUOTA_STATE__ = state;
 
@@ -96,6 +99,38 @@ def build_injection_js() -> str:
         if (pct > HIGH_PCT) return COLOR_HIGH;
         if (pct > LOW_PCT) return COLOR_MED;
         return COLOR_LOW;
+    }}
+
+    function calculateBurnRate(key, currentPct) {{
+        if (!state.history || state.history.length < 2) return null;
+        const oldest = state.history[0];
+        const newest = state.history[state.history.length - 1];
+        const timeDiffMin = (newest.t - oldest.t) / 60000;
+        if (timeDiffMin < 0.3) return null;
+
+        const drop = oldest[key] - currentPct;
+        if (drop <= 0) {{
+            return {{ ratePerHour: 0, etaMinutes: null, text: "Stabil (Erime hızı stabil)" }};
+        }}
+
+        const ratePerHour = (drop / timeDiffMin) * 60;
+        const etaMinutes = ratePerHour > 0 ? Math.round((currentPct / ratePerHour) * 60) : null;
+        let etaText = "";
+        if (etaMinutes !== null) {{
+            if (etaMinutes >= 60) {{
+                const h = Math.floor(etaMinutes / 60);
+                const m = etaMinutes % 60;
+                etaText = `~${{h}}s ${{m}}dk`;
+            }} else {{
+                etaText = `~${{etaMinutes}} dk`;
+            }}
+        }}
+        const roundedRate = Math.round(ratePerHour * 10) / 10;
+        return {{
+            ratePerHour: roundedRate,
+            etaMinutes: etaMinutes,
+            text: `🔥 ~%${{roundedRate}}/saat (Tahmini Tükenme: ${{etaText}})`
+        }};
     }}
 
     function formatTimeRemaining(resetTimeStr, windowType) {{
@@ -209,6 +244,19 @@ def build_injection_js() -> str:
                     const fresh = await fetchQuotaFromLocalServer(true);
                     if (fresh) {{
                         state.lastQuota = fresh;
+                        let curG5h = 100, curC5h = 100;
+                        for (const g of fresh.groups || []) {{
+                            for (const b of g.buckets || []) {{
+                                if (b.window === "5h") {{
+                                    const pct = Math.round((b.remainingFraction ?? 1) * 100);
+                                    const gName = g.displayName || "";
+                                    if (gName.includes("Gemini") && !gName.includes("Argon")) curG5h = pct;
+                                    if (gName.includes("Claude") || gName.includes("GPT")) curC5h = pct;
+                                }}
+                            }}
+                        }}
+                        state.history.push({{ t: Date.now(), g5h: curG5h, c5h: curC5h }});
+                        if (state.history.length > 30) state.history.shift();
                         renderBadge(fresh);
                         badge.style.borderColor = "rgba(96, 165, 250, 0.8)";
                         setTimeout(() => {{
@@ -300,6 +348,15 @@ def build_injection_js() -> str:
         const activeGroup = detectActiveModelGroup();
         tooltipLines.push(`\\nAktif Model Grubu: ${{activeGroup || "Bilinmiyor"}}`);
 
+        const gBurn = calculateBurnRate("g5h", gemini5h);
+        const cBurn = calculateBurnRate("c5h", claude5h);
+        if (gBurn) {{
+            tooltipLines.push(`• Gemini (5h) Tüketim: ${{gBurn.text}}`);
+        }}
+        if (cBurn) {{
+            tooltipLines.push(`• Claude/GPT (5h) Tüketim: ${{cBurn.text}}`);
+        }}
+
         const isGActive = activeGroup === 'gemini';
         const isArActive = activeGroup === 'argon';
         const isCActive = activeGroup === 'claude';
@@ -350,6 +407,20 @@ def build_injection_js() -> str:
         const q = await fetchQuotaFromLocalServer();
         if (q) {{
             state.lastQuota = q;
+            let curG5h = 100;
+            let curC5h = 100;
+            for (const g of q.groups || []) {{
+                for (const b of g.buckets || []) {{
+                    if (b.window === "5h") {{
+                        const pct = Math.round((b.remainingFraction ?? 1) * 100);
+                        const gName = g.displayName || "";
+                        if (gName.includes("Gemini") && !gName.includes("Argon")) curG5h = pct;
+                        if (gName.includes("Claude") || gName.includes("GPT")) curC5h = pct;
+                    }}
+                }}
+            }}
+            state.history.push({{ t: Date.now(), g5h: curG5h, c5h: curC5h }});
+            if (state.history.length > 30) state.history.shift();
         }}
         renderBadge(state.lastQuota);
     }}

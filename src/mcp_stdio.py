@@ -24,6 +24,7 @@ import config
 from src.lock import LeaderLock
 from src.logger import get_logger
 from src.quota_client import fetch_live_quota
+from src.scratch_cleaner import clean_scratch_cache
 from src.ui_watcher import inject_into_all_windows
 
 log = get_logger("mcp")
@@ -82,6 +83,29 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "clean_scratch_cache",
+        "description": (
+            "Antigravity Desktop'un oturumlar sırasında oluşturduğu geçici scratch "
+            "dizinlerini (~/.gemini/antigravity/brain/*/scratch/) güvenle temizler."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "True ise dosyaları silmeden temizlenecek boyutu hesaplar.",
+                    "default": False,
+                },
+                "older_than_hours": {
+                    "type": "number",
+                    "description": "Belirtilen saatten eski dosyaları temizler (0 ise tümü).",
+                    "default": 0,
+                },
+            },
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -124,6 +148,12 @@ def _handle_tool_call(
             "ui_injection_enabled": config.UI_Injection_Enabled,
         }
         return (False, status)
+
+    if name == "clean_scratch_cache":
+        dry_run = bool(arguments.get("dry_run", False))
+        older_than_hours = float(arguments.get("older_than_hours", 0.0))
+        result = clean_scratch_cache(older_than_hours=older_than_hours, dry_run=dry_run)
+        return (not result.get("ok", False), result)
 
     return (True, {"error": f"Bilinmeyen araç: {name}"})
 
