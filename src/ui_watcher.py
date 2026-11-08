@@ -20,6 +20,8 @@ from src.cdp_client import cdp_evaluate
 from src.discovery import discover_cdp_page_targets
 from src.lock import LeaderLock
 from src.logger import get_logger
+from src.notifier import QuotaNotifier
+from src.quota_client import fetch_live_quota
 from src.ui_payload import build_check_badge_js, build_injection_js
 
 log = get_logger("watcher")
@@ -89,6 +91,7 @@ class UIWatcherThread(threading.Thread):
         self.lock = lock
         self._stop_event = threading.Event()
         self._was_leader = False
+        self._notifier = QuotaNotifier()
 
     def stop(self) -> None:
         """İzleyici döngüsünü durdurur ve kilidi serbest bırakır."""
@@ -109,6 +112,15 @@ class UIWatcherThread(threading.Thread):
                     inject_into_all_windows(force=False)
                 except Exception as exc:
                     log.debug(f"UI kontrol döngüsü hatası: {exc}")
+
+                # Lider iken masaüstü bildirimlerini kontrol et
+                if config.ENABLE_DESKTOP_NOTIFICATIONS:
+                    try:
+                        live_quota = fetch_live_quota()
+                        if live_quota.ok:
+                            self._notifier.check_and_notify(live_quota, is_leader=True)
+                    except Exception as exc:
+                        log.debug(f"Bildirim kontrol hatası: {exc}")
             else:
                 if self._was_leader:
                     log.info("UI Liderliği başka bir sürece geçti, yedek moda geçildi.")

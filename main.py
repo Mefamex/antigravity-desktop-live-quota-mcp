@@ -29,6 +29,7 @@ from src.discovery import discover_cdp_page_targets, discover_language_servers
 from src.lock import LeaderLock
 from src.logger import get_logger
 from src.mcp_stdio import run_stdio_server
+from src.notifier import is_notify_send_available, send_desktop_notification
 from src.quota_client import fetch_live_quota
 from src.scratch_cleaner import clean_scratch_cache
 from src.ui_watcher import UIWatcherThread, inject_into_all_windows
@@ -74,6 +75,23 @@ def _run_cli_clean_scratch(dry_run: bool = False, hours: float = 0.0) -> int:
     return 0 if res.get("ok") else 1
 
 
+def _run_cli_test_notify() -> int:
+    """Terminalden `--test-notify` ile çağrıldığında test masaüstü bildirimi gönderir."""
+    if not is_notify_send_available():
+        sys.stderr.write("[HATA] Sisteminizde `notify-send` bulunamadı (libnotify kurulu değil).\n")
+        return 1
+
+    ok = send_desktop_notification(
+        title="⚡ Antigravity Canlı Kota Uyarısı (Test)",
+        message="Masaüstü bildirim sistemi başarıyla çalışıyor! Kritik kota eşiklerinde anında haberdar edileceksiniz.",
+        urgency="normal",
+        icon="dialog-information",
+    )
+    res = {"ok": ok, "message": "Test bildirimi gönderildi." if ok else "Bildirim gönderilemedi."}
+    sys.stdout.write(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
+    return 0 if ok else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Antigravity Desktop Canlı Kota Göstergesi ve MCP Sunucusu"
@@ -92,6 +110,11 @@ def main() -> int:
         "--clean-scratch",
         action="store_true",
         help="Antigravity brain scratch/ geçici dosyalarını temizler.",
+    )
+    parser.add_argument(
+        "--test-notify",
+        action="store_true",
+        help="Masaüstüne örnek bir test bildirimi gönderir.",
     )
     parser.add_argument(
         "--dry-run",
@@ -114,6 +137,9 @@ def main() -> int:
 
     if args.clean_scratch:
         return _run_cli_clean_scratch(dry_run=args.dry_run, hours=args.older_than_hours)
+
+    if args.test_notify:
+        return _run_cli_test_notify()
 
     # Varsayılan: MCP Stdio Sunucusu + Lider Seçimli Arka Plan UI İzleyicisi
     leader_lock = LeaderLock()

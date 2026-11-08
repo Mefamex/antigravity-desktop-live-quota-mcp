@@ -28,6 +28,8 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MAIN_PY = str(PROJECT_ROOT / "main.py")
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def send_rpc(proc: subprocess.Popen[str], req: dict[str, Any]) -> dict[str, Any]:
@@ -165,10 +167,91 @@ def main() -> int:
         print(f"• Scratch Temizlik (Dry-Run): ok={clean_res.get('ok')}, silinecek={clean_res.get('deleted_files_count')}, boyut={clean_res.get('freed_human')}")
         assert clean_res.get("ok") is True
 
+        print("\n" + "=" * 68)
+        print("7. MASAÜSTÜ BİLDİRİM (NOTIFIER) VE KRİTİK EŞİK/RESET MANTIĞI TESTİ")
+        print("=" * 68)
+
+        from src.models import BucketQuota, GroupQuota, QuotaReport
+        from src.notifier import QuotaNotifier, is_notify_send_available
+
+        print(f"• notify-send kullanılabilirliği: {is_notify_send_available()}")
+        notifier = QuotaNotifier()
+
+        # Simülasyon 1: Kritik eşik altı (%10) kota raporu
+        critical_report = QuotaReport(
+            ok=True,
+            gemini_weekly_pct=80,
+            gemini_5h_pct=10,
+            claude_weekly_pct=90,
+            claude_5h_pct=80,
+            argon_weekly_pct=70,
+            groups=[
+                GroupQuota(
+                    display_name="Gemini Models",
+                    description="Models within this group",
+                    buckets=[
+                        BucketQuota(
+                            bucket_id="gemini-5h",
+                            display_name="Five Hour Limit",
+                            window="5h",
+                            remaining_fraction=0.10,
+                            remaining_percent=10,
+                            reset_time="2026-11-08T05:00:00Z",
+                            description="Tükenmek üzere",
+                        )
+                    ],
+                )
+            ],
+        )
+
+        # Standby modda bildirim üretmemeli
+        standby_alerts = notifier.check_and_notify(critical_report, is_leader=False)
+        assert len(standby_alerts) == 0, "Standby süreç bildirim göndermemeli!"
+
+        # Lider modda bildirim göndermeli
+        leader_alerts = notifier.check_and_notify(critical_report, is_leader=True)
+        print(f"• Kritik Eşik Bildirimi: {leader_alerts}")
+        assert len(leader_alerts) == 1, "Kritik eşikte 1 bildirim üretilmeliydi!"
+
+        # Cooldown içinde tekrar bildirim üretmemeli (anti-spam)
+        cooldown_alerts = notifier.check_and_notify(critical_report, is_leader=True)
+        assert len(cooldown_alerts) == 0, "Cooldown süresince spam engellenmeliydi!"
+
+        # Simülasyon 2: Kota yenilendi (%95)
+        reset_report = QuotaReport(
+            ok=True,
+            gemini_weekly_pct=80,
+            gemini_5h_pct=95,
+            claude_weekly_pct=90,
+            claude_5h_pct=80,
+            argon_weekly_pct=70,
+            groups=[
+                GroupQuota(
+                    display_name="Gemini Models",
+                    description="Models within this group",
+                    buckets=[
+                        BucketQuota(
+                            bucket_id="gemini-5h",
+                            display_name="Five Hour Limit",
+                            window="5h",
+                            remaining_fraction=0.95,
+                            remaining_percent=95,
+                            reset_time="2026-11-08T10:00:00Z",
+                            description="Tazelendi",
+                        )
+                    ],
+                )
+            ],
+        )
+        reset_alerts = notifier.check_and_notify(reset_report, is_leader=True)
+        print(f"• Kota Yenilenme Bildirimi: {reset_alerts}")
+        assert len(reset_alerts) == 1, "Kota sıfırlandığında yenilenme bildirimi üretilmeliydi!"
+        print("[PASS] Notifier bildirim mantığı, anti-spam cooldown ve lider koruması doğrulandı!")
+
         proc2.terminate()
         proc2.wait(timeout=3)
 
-        print("\n[SUCCESS] Tüm testler (Soğuk başlangıç, Çoklu Örnek Kilit, Failover, Kota, CDP UI ve Scratch Temizliği) başarıyla geçti!")
+        print("\n[SUCCESS] Tüm testler (Soğuk başlangıç, Çoklu Örnek Kilit, Failover, Kota, CDP UI, Scratch Temizliği ve Masaüstü Bildirimleri) başarıyla geçti!")
         return 0
     finally:
         try:

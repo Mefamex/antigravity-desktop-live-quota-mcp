@@ -4,6 +4,23 @@
 
 ---
 
+### [2026-11-08 03:51] — 28. Kritik Kota ve Kota Yenilenme Masaüstü Bildirimleri (Linux notify-send)
+- **Masaüstü Bildirim Motoru (`src/notifier.py`):**
+  - Sıfır dış bağımlılıkla saf Python stdlib (`subprocess`, `shutil`) üzerinden sistemin `/usr/bin/notify-send` aracı entegre edildi.
+  - **Kritik Eşik Uyarısı:** Model kotalarından herhangi biri `%15` eşiğinin altına indiğinde acil (`urgency=critical`, `dialog-warning`) masaüstü bildirimi gönderir.
+  - **Kota Yenilenme Müjdesi:** 5 saatlik sayaç dolup kota %90 üzerine çıktığında bilgilendirici (`urgency=normal`, `emblem-default`) bildirim gönderir.
+  - **Anti-Spam & Cooldown:** Aynı eşik için 30 dakika boyunca kullanıcıyı rahatsız etmeyecek akıllı zamanlayıcı koruması eklendi.
+  - **Lider Koruması:** Çoklu pencere/süreç durumunda bildirimlerin çift gitmemesi için yalnızca `LEADER` olan süreç bildirim gönderir.
+- **Entegrasyon ve CLI:**
+  - `UIWatcherThread` arka plan döngüsüne lider bildirim kontrolü bağlandı.
+  - `main.py --test-notify` ve `Makefile` içine `make test-notify` hedefleri eklendi.
+- **Doğrulama:**
+  - `tests/verify_all.py` test paketine 7. aşama olarak `QuotaNotifier` kritik eşik, cooldown anti-spam ve yenilenme mantık testleri eklendi.
+  - `make verify`: Soğuk başlangıç, flock, failover, CDP UI, scratch temizliği ve masaüstü bildirimleri dahil **ALL_OK**.
+  - `plugin-scanner`: **100/100 (A - Excellent)** 0 bulgu ile korundu.
+
+---
+
 ### [2026-11-08 03:35] — 27. Burn-Rate Tüketim Analitiği, Scratch Temizleyici Aracı ve Ajanlar Ortak Bellek Entegrasyonu
 - **Burn-Rate Analytics (Tüketim Hızı & Erime Tahmini):**
   - `src/ui_payload.py` içine zaman damgalı kota geçmişi (`state.history`) takip mekanizması eklendi.

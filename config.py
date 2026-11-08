@@ -31,7 +31,7 @@ def _env_bool(key: str, default: bool) -> bool:
 # 1. SUNUCU KİMLİK BİLGİLERİ
 # ============================================================================
 SERVER_NAME: str = "antigravity-desktop-live-quota-mcp"
-SERVER_VERSION: str = "1.1.0"
+SERVER_VERSION: str = "1.1.1"
 PROTOCOL_VERSION: str = "2025-11-25"
 
 # ============================================================================
@@ -91,3 +91,13 @@ COLOR_LOW: str = "#f87171"    # Kırmızı
 # Not: MCP stdio protokolünde stdout SADECE JSON-RPC mesajları içindir.
 # Tüm loglar kesinlikle stderr'e yazılır.
 LOG_LEVEL: str = os.environ.get("AGY_LOG_LEVEL", "INFO").upper()
+
+# ============================================================================
+# 6. MASAÜSTÜ BİLDİRİM (DESKTOP NOTIFICATION) AYARLARI
+# ============================================================================
+ENABLE_DESKTOP_NOTIFICATIONS: bool = _env_bool("AGY_ENABLE_NOTIFICATIONS", True)
+NOTIFICATION_CRITICAL_THRESHOLD_PCT: int = _env_int("AGY_NOTIFY_THRESHOLD_PCT", 15)
+NOTIFICATION_COOLDOWN_MINUTES: int = _env_int("AGY_NOTIFY_COOLDOWN_MIN", 30)
+ENABLE_RESET_NOTIFICATION: bool = _env_bool("AGY_ENABLE_RESET_NOTIFY", True)
+NOTIFICATION_APP_NAME: str = "Antigravity Quota"
+

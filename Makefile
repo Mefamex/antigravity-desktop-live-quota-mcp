@@ -50,6 +50,9 @@ status: ## Canlı kotayı, açık pencereleri ve lider durumunu terminalde JSON 
 inject: ## Açık Antigravity Desktop penceresine rozeti hemen enjekte eder
 	@python3 -B main.py --inject
 
+test-notify: ## Masaüstüne örnek bir kritik kota test bildirimi gönderir
+	@python3 -B main.py --test-notify
+
 test: ## Soğuk başlangıç, çoklu örnek kilit, failover ve CDP testlerini koşturur
 	@python3 -B tests/verify_all.py
 

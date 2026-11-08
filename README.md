@@ -65,6 +65,9 @@ Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan ca
 * **Anında Zorlamalı Bulut Yenilemesi:** Rozete tıklandığında `{ forceRefresh: true }` parametresi gönderilerek yerel dil sunucusunun önbelleği (`cache.ClearAndRefresh`) temizlenir; güncel veri Google bulutundan anında çekilir.
 * **Çift Katmanlı Çakışma Koruması:** Linux çekirdek kilidi (`fcntl.flock`) ile birden fazla pencere/CLI açıldığında tek bir `LEADER` belirlenir. Diğer süreçler `STANDBY` modunda bekler; lider kapanırsa otomatik devir (failover) gerçekleşir.
 * **Adaptif ve Responsive Stil:** HiDPI ve fractional scaling ekranlar için `clamp(6px, 1vw, 12px)` ve `flex-shrink: 0` CSS kuralları ile pencere genişliğine uyum sağlar.
+* **Tüketim Hızı & Erime Tahmini (Burn-Rate Analytics):** Dakika başına kota düşüş hızını (`% / saat`) hesaplayarak 5 saatlik kota için tahmini tükenme süresini (`ETA: ~X dk`) tooltip üzerinde anlık modeller.
+* **Kritik Kota & Yenilenme Masaüstü Bildirimleri:** Kota kritik eşiğe (`<= %15`) düştüğünde veya sayaç sıfırlanıp yenilendiğinde Linux masaüstüne (`notify-send`) 30 dk anti-spam korumalı yerel bildirim gönderir.
+* **Tek Tıkla Scratch Temizliği:** Antigravity brain dizininde biriken geçici oturum kalıntılarını güvenle temizleyen `clean_scratch_cache` aracı ve `make clean-scratch` komutu.
 
 ---
 
@@ -140,6 +143,9 @@ make status
 
 # Açık olan Antigravity Desktop penceresine rozeti anında zorla enjekte eder
 make inject
+
+# Masaüstüne örnek bir kritik kota test bildirimi gönderir
+make test-notify
 
 # Soğuk başlangıç, liderlik kilidi, failover ve enjeksiyon testlerini koşturur
 make test
