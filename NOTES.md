@@ -82,8 +82,9 @@
     1. `LICENSE`: Açık lisans şeffaflığı (MIT).
     2. `SECURITY.md`: Sorumlu güvenlik açığı bildirim kanalı (`info@mefamex.com`).
     3. `.github/dependabot.yml`: GitHub Actions adımlarının güvenlik güncellemelerini takip etmek için.
-    4. `pyproject.toml` & `requirements.txt`: Standart Python paket indeksleme ve sıfır-bağımlılık manifestosu.
-  - Bu standartlar tamamlandıktan sonra katalog botu skorumuzu **68'den 92'ye (A+)** yükseltmiş ve tüm kapıları yeşile çevirmiştir (PR #1222).
+    4. `pyproject.toml` & `requirements.lock`: Standart Python paket indeksleme (PEP 621) ve sıfır bağımlılıklı deterministik lockfile (scanner'ın `DEPENDENCY_LOCKFILE_MISSING` kuralını 100/100 ile karşılar).
+    5. `.github/workflows/scanner.yml`: Repoda her push ve PR'da HOL Plugin Scanner'ı (SHA-40 ile pinli actions) koşturan resmi CI iş akışı.
+  - Bu standartlar tamamlandıktan sonra yerel ve CI katalog tarayıcısında skorumuz **100/100 (A+ Excellent)** tam puana ulaşmıştır (Security: 16/16, Operational Security: 20/20, Best Practices: 6/6, Code Quality: 10/10).
 
 ---
 

@@ -4,6 +4,18 @@
 
 ---
 
+### [2026-11-08 03:23] — 26. HOL Plugin Scanner'da %100 (100/100 A+) Skora Ulaşılması ve CI/CD Scanner İş Akışının Eklenmesi
+- Scanner kuralları (`codex_plugin_scanner.checks.operational_security`) kaynak kod düzeyinde incelendi:
+  - Sıfır bağımlılıklı projede `requirements.txt` dosyasının paket pinlemesi içermemesinden kaynaklanan `DEPENDENCY_LOCKFILE_MISSING` bulgusu tespit edildi.
+  - Saf `pyproject.toml` (PEP 621) yanına `requirements.lock` eklenerek sıfır harici bağımlılık garantisi deterministik lockfile standardına kavuşturuldu.
+  - Önerilen resmi tarayıcı iş akışı `.github/workflows/scanner.yml` (SHA-40 ile pinlenmiş GitHub Actions) eklendi.
+- Yerel `pipx run --spec plugin-scanner==3.57.0 plugin-scanner scan . --min-score 75` doğrulaması:
+  - **Skor:** **`100 / 100 (A - Excellent)`** (Tüm 5 kategori tam puan: Security 16/16, Operational Security 20/20, Best Practices 6/6, Code Quality 10/10).
+  - Findings: `critical:0, high:0, medium:0, low:0, info:0`.
+- Proje içi tüm doğrulama testleri (`make verify`) sıfır hata (`ALL_OK`) ile geçti.
+
+---
+
 ### [2026-11-08 02:49] — 25. awesome-ai-plugins (1.000+ ⭐) Kataloğuna Resmi PR Açılması ve 92/100 Puanla Yeşil Geçiş
 - `hashgraph-online/awesome-ai-plugins` kataloğu fork'landı ve `add-antigravity-desktop-live-quota-mcp` dalı oluşturuldu.
 - `README.md` içindeki `Community Plugins > Tools & Integrations` bölümüne standart alfabetik sırada ve resmi MCP formatında kayıt eklendi.
