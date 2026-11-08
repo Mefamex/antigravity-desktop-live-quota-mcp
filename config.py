@@ -31,7 +31,7 @@ def _env_bool(key: str, default: bool) -> bool:
 # 1. SUNUCU KİMLİK BİLGİLERİ
 # ============================================================================
 SERVER_NAME: str = "antigravity-desktop-live-quota-mcp"
-SERVER_VERSION: str = "1.0.0"
+SERVER_VERSION: str = "1.1.0"
 PROTOCOL_VERSION: str = "2025-11-25"
 
 # ============================================================================
