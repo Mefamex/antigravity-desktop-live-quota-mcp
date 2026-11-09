@@ -404,7 +404,7 @@ def build_injection_js() -> str:
     }}
 
     async function updateCycle() {{
-        const q = await fetchQuotaFromLocalServer();
+        const q = await fetchQuotaFromLocalServer(true);
         if (q) {{
             state.lastQuota = q;
             let curG5h = 100;

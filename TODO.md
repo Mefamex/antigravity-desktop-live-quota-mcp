@@ -29,13 +29,7 @@
 ## 📌 2. Yüksek Öncelik (High Priority)
 *Aktif sprint biter bitmez sırada bekleyen kritik maddeler:*
 
-- [ ] **[BUG] Tıklamayla Güncellenen Kotanın Bir Süre Sonra Eski Değerlere Geri Dönmesi:**
-  - **Semptom:** Livebar'a tıklandığında anlık olarak güncel kota çekiliyor (`forceRefresh`), ancak bir süre sonra rozet tekrar eski bayat (stale) kota değerlerini göstermeye başlıyor.
-  - **Olası Kök Nedenler (Analiz Hipotezi):**
-    1. `src/ui_payload.py` içindeki periyodik `setInterval` arka plan yoklamasının `forceRefresh: true` yerine standart `{}` ile sorgulama yapıp dil sunucusunun eski önbellek verisiyle taze veriyi ezmesi.
-    2. `src/ui_watcher.py` arka plan Python thread'inin `get_quota_status` çağrısında `force_refresh=False` kalarak bayat önbelleği DOM'a yeniden enjekte etmesi.
-    3. Yerel dil sunucusu (`language_server`) önbellek TTL süresi ve senkronizasyon davranışı.
-  - **Aksiyon:** `ui_payload.py` periyodik yoklama mantığı ve `ui_watcher.py` senkronizasyonu analiz edilecek; periyodik güncellemelerin taze veriyi koruması sağlanacak.
+*(Şu anda aktif bekleyen yüksek öncelikli hata veya görev bulunmamaktadır. Tüm maddeler tamamlanıp TODO.DONE.md'ye aktarılmıştır.)*
 
 ---
 

@@ -116,7 +116,7 @@ class UIWatcherThread(threading.Thread):
                 # Lider iken masaüstü bildirimlerini kontrol et
                 if config.ENABLE_DESKTOP_NOTIFICATIONS:
                     try:
-                        live_quota = fetch_live_quota()
+                        live_quota = fetch_live_quota(force_refresh=True)
                         if live_quota.ok:
                             self._notifier.check_and_notify(live_quota, is_leader=True)
                     except Exception as exc:
