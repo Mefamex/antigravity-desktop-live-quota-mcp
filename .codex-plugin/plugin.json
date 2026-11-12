@@ -1,0 +1,22 @@
+{
+  "name": "antigravity-desktop-live-quota-mcp",
+  "version": "1.1.1",
+  "description": "Zero-dependency MCP server that injects a live quota and reset countdown badge into the Google Antigravity Desktop title bar via CDP.",
+  "author": {
+    "name": "Mehmet Akif AKKOÇ",
+    "email": "info@mefamex.com",
+    "url": "https://github.com/Mefamex"
+  },
+  "homepage": "https://github.com/Mefamex/antigravity-desktop-live-quota-mcp",
+  "repository": "https://github.com/Mefamex/antigravity-desktop-live-quota-mcp",
+  "license": "MIT",
+  "keywords": [
+    "antigravity",
+    "google-antigravity",
+    "mcp",
+    "model-context-protocol",
+    "quota-tracker",
+    "status-bar",
+    "cdp"
+  ]
+}
