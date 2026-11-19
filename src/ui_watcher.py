@@ -13,11 +13,12 @@ Arka Plan UI İzleyici ve Enjektör Modülü (src/ui_watcher.py)
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
 import config
 from src.cdp_client import cdp_evaluate
-from src.discovery import discover_cdp_page_targets
+from src.discovery import diagnose_cdp_status, discover_cdp_page_targets
 from src.lock import LeaderLock
 from src.logger import get_logger
 from src.notifier import QuotaNotifier
@@ -34,11 +35,14 @@ def inject_into_all_windows(force: bool = False) -> dict[str, Any]:
     """
     pages = discover_cdp_page_targets()
     if not pages:
+        diag = diagnose_cdp_status()
+        msg = diag.get("fix_hint") or "Açık Antigravity Desktop penceresi (CDP hedefi) bulunamadı."
         return {
             "ok": False,
             "injected_count": 0,
             "already_active_count": 0,
-            "message": "Açık Antigravity Desktop penceresi (CDP hedefi) bulunamadı.",
+            "message": msg,
+            "diagnostics": diag,
         }
 
     check_js = build_check_badge_js()
@@ -91,6 +95,8 @@ class UIWatcherThread(threading.Thread):
         self.lock = lock
         self._stop_event = threading.Event()
         self._was_leader = False
+        self._cdp_warning_logged = False
+        self._last_notify_check_ts = 0.0
         self._notifier = QuotaNotifier()
 
     def stop(self) -> None:
@@ -109,18 +115,29 @@ class UIWatcherThread(threading.Thread):
                     log.info("Bu süreç UI Lideri olarak aktifleşti.")
                     self._was_leader = True
                 try:
-                    inject_into_all_windows(force=False)
+                    res = inject_into_all_windows(force=False)
+                    if res.get("ok"):
+                        self._cdp_warning_logged = False
+                    elif (
+                        res.get("diagnostics", {}).get("reason") == "cdp_disabled_in_antigravity_2_33"
+                        and not self._cdp_warning_logged
+                    ):
+                        log.warning(res["message"])
+                        self._cdp_warning_logged = True
                 except Exception as exc:
                     log.debug(f"UI kontrol döngüsü hatası: {exc}")
 
-                # Lider iken masaüstü bildirimlerini kontrol et
+                # Lider iken masaüstü bildirimlerini kontrol et (hız sınırlamalı)
                 if config.ENABLE_DESKTOP_NOTIFICATIONS:
-                    try:
-                        live_quota = fetch_live_quota(force_refresh=True)
-                        if live_quota.ok:
-                            self._notifier.check_and_notify(live_quota, is_leader=True)
-                    except Exception as exc:
-                        log.debug(f"Bildirim kontrol hatası: {exc}")
+                    now = time.monotonic()
+                    if (now - self._last_notify_check_ts) >= config.WATCHER_NOTIFY_INTERVAL_SEC:
+                        self._last_notify_check_ts = now
+                        try:
+                            live_quota = fetch_live_quota(force_refresh=True)
+                            if live_quota.ok:
+                                self._notifier.check_and_notify(live_quota, is_leader=True)
+                        except Exception as exc:
+                            log.debug(f"Bildirim kontrol hatası: {exc}")
             else:
                 if self._was_leader:
                     log.info("UI Liderliği başka bir sürece geçti, yedek moda geçildi.")

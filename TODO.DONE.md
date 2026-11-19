@@ -4,6 +4,24 @@
 
 ---
 
+### [2026-11-19 18:45] — 29. Antigravity 2.33.0+ Uyumluluk, Kalıcı CDP Launcher, Yeni Model Desteği ve Hata Giderimi (v1.2.0)
+- **Kök Neden Tespiti (`app.asar` Karşılaştırmalı Analiz):**
+  - Antigravity `2.32.1` -> `2.33.0` güncellemesinde `app.commandLine.appendSwitch('remote-debugging-port', '0')` varsayılanının kaldırıldığı ve bayraksız açılışta `removeStaleActivePortFile()` ile `~/.config/Antigravity/DevToolsActivePort` dosyasının silindiği tespit edildi.
+- **Keşif ve Tanılama (`src/discovery.py`, `src/ui_watcher.py`, `src/mcp_stdio.py`, `main.py`):**
+  - `AGY_BROWSER_ACTIVE_PORT_FILE` ve `AGY_BROWSER_WS_URL` ortam değişkeni desteği eklendi.
+  - `/proc` üzerinden ana Antigravity Desktop sürecini inceleyen `get_antigravity_desktop_process_info()` ve kesin hata nedeni (`cdp_disabled_in_antigravity_2_33` vb.) + çözüm önerisi üreten `diagnose_cdp_status()` eklendi; `get_instance_status`, `--status` ve `reinject_badge` çıktılarına bağlandı.
+- **Kalıcı Kullanıcı-Seviyesi CDP Launcher (`install.sh`, `Makefile`):**
+  - `sudo` gerektirmeyen ve `pacman` yükseltmelerinden etkilenmeyen `~/.local/share/applications/antigravity.desktop` ve `~/.local/bin/antigravity` sarmalayıcısı (`--remote-debugging-port=0`) `install.sh` ve `make enable-cdp` / `make remove` hedeflerine eklendi.
+- **UI Payload, Yeni Modeller ve Yarış Koruması (`src/ui_payload.py`, `src/ui_watcher.py`):**
+  - Antigravity `2.33.0` modellerine (`Gemini 4 Neon`, `Gemini 4 Hydrogen`, `Orchestrator (Neon)`) ve `button[data-testid="model-selector-trigger"]` seçicisine tam destek eklendi.
+  - Monoton `fetchSeq` / `lastAppliedSeq` sıralaması, tıklama sonrası polling sıfırlaması ve eksik kota grubu koruması eklendi.
+  - Arka plan bildirim yoklaması `WATCHER_NOTIFY_INTERVAL_SEC` (`AGY_WATCHER_NOTIFY_SEC=60`) ile hız sınırlamasına alındı.
+- **Sürüm ve Doğrulama:**
+  - `config.py`, `pyproject.toml`, `.codex-plugin/plugin.json` `1.2.0` sürümüne senkronize edildi.
+  - `tests/verify_all.py` yeni model/payload ve `cdp_status` kontrolleriyle genişletildi (`--strict-cdp` opsiyonu eklendi); `make verify` başarıyla geçti.
+
+---
+
 ### [2026-11-08 03:51] — 28. Kritik Kota ve Kota Yenilenme Masaüstü Bildirimleri (Linux notify-send)
 - **Masaüstü Bildirim Motoru (`src/notifier.py`):**
   - Sıfır dış bağımlılıkla saf Python stdlib (`subprocess`, `shutil`) üzerinden sistemin `/usr/bin/notify-send` aracı entegre edildi.

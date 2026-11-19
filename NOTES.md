@@ -63,6 +63,10 @@
 3. **Wayland & HiDPI Ölçekleme (devicePixelRatio):**
    - KDE Plasma 6 Wayland fractional scaling altında (örneğin `%125` veya `%132.5`) sabit piksel kenar boşlukları taşma yapabilir.
    - Bu nedenle rozet kapsülü `clamp(6px, 1vw, 12px)` ve `flex-shrink: 0` adaptif CSS kurallarıyla donatıldı.
+4. **Antigravity 2.33.0+ Opt-In CDP Değişikliği (`--remote-debugging-port=0`):**
+   - `2.31.0` ve `2.32.1` sürümlerindeki `app.asar` (`dist/main.js`), açılışta otomatik olarak `app.commandLine.appendSwitch('remote-debugging-port', '0')` ekliyordu.
+   - `2.33.0` (2026-11-19) güncellemesiyle Google bu varsayılanı kaldırdı; bayrak verilmeden açıldığında `removeStaleActivePortFile()` ile `~/.config/Antigravity/DevToolsActivePort` dosyasını aktif olarak silmeye başladı (`dist/main.js`). Ayrıca bayrak verildiğinde `language_server` ortamına `AGY_BROWSER_ACTIVE_PORT_FILE` aktarıyor.
+   - **Karar:** `sudo` gerektiren sistem dizinine (`/usr/share/applications/`) dokunmak veya paket güncellemelerinde ezilecek `app.asar` yaması yapmak yerine, XDG standardı `~/.local/share/applications/antigravity.desktop` + `~/.local/bin/antigravity` kullanıcı-seviyesi launcher override yaklaşımı seçildi. Böylece sonraki `pacman`/`yay` güncellemelerinde dahi CDP açık kalır.
 
 ---
 

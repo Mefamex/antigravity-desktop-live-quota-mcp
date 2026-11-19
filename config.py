@@ -31,7 +31,7 @@ def _env_bool(key: str, default: bool) -> bool:
 # 1. SUNUCU KİMLİK BİLGİLERİ
 # ============================================================================
 SERVER_NAME: str = "antigravity-desktop-live-quota-mcp"
-SERVER_VERSION: str = "1.1.1"
+SERVER_VERSION: str = "1.2.0"
 PROTOCOL_VERSION: str = "2025-11-25"
 
 # ============================================================================
@@ -41,10 +41,9 @@ HOME_DIR: Path = Path.home()
 
 # Antigravity Desktop'ın aktif Chrome DevTools portunu yazdığı dosya
 DEVTOOLS_PORT_FILE: Path = Path(
-    os.environ.get(
-        "AGY_DEVTOOLS_PORT_FILE",
-        str(HOME_DIR / ".config" / "Antigravity" / "DevToolsActivePort"),
-    )
+    os.environ.get("AGY_DEVTOOLS_PORT_FILE")
+    or os.environ.get("AGY_BROWSER_ACTIVE_PORT_FILE")
+    or str(HOME_DIR / ".config" / "Antigravity" / "DevToolsActivePort")
 )
 
 # Çoklu örnek (multi-instance) çalışmada sadece tek bir sürecin UI enjeksiyonu
@@ -60,6 +59,9 @@ BROWSER_FETCH_INTERVAL_MS: int = _env_int("AGY_BROWSER_FETCH_MS", 30_000)
 
 # Lider MCP sürecinin pencereyi (Ctrl+R veya yeni pencere açılmasına karşı) kontrol sıklığı (sn)
 WATCHER_CHECK_INTERVAL_SEC: int = _env_int("AGY_WATCHER_CHECK_SEC", 8)
+
+# Lider sürecin masaüstü bildirimleri için buluttan kota sorgulama sıklığı (sn)
+WATCHER_NOTIFY_INTERVAL_SEC: int = _env_int("AGY_WATCHER_NOTIFY_SEC", 60)
 
 # Yerel HTTP ve WebSocket bağlantıları için zaman aşımı süresi (sn)
 NETWORK_TIMEOUT_SEC: float = float(_env_int("AGY_NETWORK_TIMEOUT_SEC", 2))

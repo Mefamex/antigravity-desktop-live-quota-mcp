@@ -25,7 +25,7 @@ import json
 import signal
 from typing import Any
 
-from src.discovery import discover_cdp_page_targets, discover_language_servers
+from src.discovery import diagnose_cdp_status, discover_cdp_page_targets, discover_language_servers
 from src.lock import LeaderLock
 from src.logger import get_logger
 from src.mcp_stdio import run_stdio_server
@@ -53,6 +53,7 @@ def _run_cli_status() -> int:
         "cdp_windows": [
             {"id": p.get("id"), "title": p.get("title")} for p in pages
         ],
+        "cdp_diagnostics": diagnose_cdp_status(),
         "active_ui_leader_pid": holder,
         "quota_details": report.to_dict() if report.ok else {"error": report.error},
     }

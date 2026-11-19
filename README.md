@@ -6,7 +6,7 @@
 | **Website**  | [https://www.mefamex.com](https://www.mefamex.com)            |
 | **License**  | MIT                                                           |
 | **Created**  | 2026-11-07                                                    |
-| **Updated**  | 2026-11-08                                                    |
+| **Updated**  | 2026-11-19                                                    |
 | **Stack**    | Python ≥ 3.10 (Sıfır Harici Bağımlılık / Pure Python Stdlib)  |
 | **Platform** | Linux (Arch Linux, KDE Plasma 6, Wayland, X11)                |
 | **Status**   | ✅ Production Ready                                            |
@@ -59,10 +59,10 @@ Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan ca
 
 ## 3. Temel Yetenekler ve Özellikler (Key Features)
 
-* **5 Kota Türünün Tam Entegrasyonu:** `⚡G` (Gemini Flash/Pro 5h ve haftalık), `Ar` (Gemini 4 Argon haftalık) ve `C` (Claude/GPT 5h ve haftalık) kotalarını eşzamanlı izler.
+* **5 Kota Türünün Tam Entegrasyonu:** `⚡G` (Gemini Flash/Pro/Neon/Hydrogen/Orchestrator 5h ve haftalık), `Ar` (Gemini 4 Argon haftalık) ve `C` (Claude/GPT 5h ve haftalık) kotalarını eşzamanlı izler.
 * **Dinamik Kalan Süre Sayacı:** Statik etiketler yerine `resetTime` verisinden canlı hesaplanan geri sayımları gösterir (`0:50h`, `6.8d`, `7.0d`). Yerel DOM döngüsü (5 sn) ağ trafiği üretmeden süreyi akıtır.
-* **Aktif Model Vurgusu:** Sohbet oturumunda kullanılan modele göre ilgili etiketi (`⚡G:`, `Ar:`, `C:`) parlak arka plan kapsülü ve hafif ışıltı ile görsel olarak öne çıkarır.
-* **Anında Zorlamalı Bulut Yenilemesi:** Rozete tıklandığında `{ forceRefresh: true }` parametresi gönderilerek yerel dil sunucusunun önbelleği (`cache.ClearAndRefresh`) temizlenir; güncel veri Google bulutundan anında çekilir.
+* **Aktif Model Vurgusu:** Sohbet oturumunda kullanılan modele göre (`Neon`, `Hydrogen`, `Orchestrator`, `Flash`, `Pro`, `Argon`, `Claude`, `GPT`) ilgili etiketi (`⚡G:`, `Ar:`, `C:`) parlak arka plan kapsülü ve hafif ışıltı ile görsel olarak öne çıkarır.
+* **Anında Zorlamalı Bulut Yenilemesi ve Yarış Koruması:** Rozete tıklandığında `{ forceRefresh: true }` parametresi gönderilerek yerel dil sunucusunun önbelleği (`cache.ClearAndRefresh`) temizlenir; monoton sıralama (`fetchSeq`) ile eski yanıtların taze veriyi ezmesi önlenir.
 * **Çift Katmanlı Çakışma Koruması:** Linux çekirdek kilidi (`fcntl.flock`) ile birden fazla pencere/CLI açıldığında tek bir `LEADER` belirlenir. Diğer süreçler `STANDBY` modunda bekler; lider kapanırsa otomatik devir (failover) gerçekleşir.
 * **Adaptif ve Responsive Stil:** HiDPI ve fractional scaling ekranlar için `clamp(6px, 1vw, 12px)` ve `flex-shrink: 0` CSS kuralları ile pencere genişliğine uyum sağlar.
 * **Tüketim Hızı & Erime Tahmini (Burn-Rate Analytics):** Dakika başına kota düşüş hızını (`% / saat`) hesaplayarak 5 saatlik kota için tahmini tükenme süresini (`ETA: ~X dk`) tooltip üzerinde anlık modeller.
@@ -90,9 +90,11 @@ cd /mnt/DiskD/SOFTWARE/Github-repos/antigravity-desktop-live-quota-mcp
 
 ### 2. Tek Komutla Otomatik Kurun
 ```bash
-# MCP kaydını yapar, izinleri ayarlar ve açık pencereye rozeti enjekte eder
+# MCP kaydını yapar, izinleri ayarlar, 2.33+ kalıcı CDP launcher'ını kurar ve rozeti enjekte eder
 make install
 ```
+
+> **Antigravity Desktop ≥ 2.33.0 Notu:** Google, Antigravity `2.33.0` sürümünden itibaren varsayılan `--remote-debugging-port=0` anahtarını kapattı. `make install` (veya tek başına `make enable-cdp`) komutu `sudo` gerektirmeden `~/.local/share/applications/antigravity.desktop` ve `~/.local/bin/antigravity` dosyalarını güncellemelerden etkilenmeyecek şekilde ayarlar. İlk kurulum sonrası çalışan Antigravity Desktop penceresini bir kez tamamen kapatıp yeniden açmanız yeterlidir.
 
 ### 3. Manuel Kurulum Alternatifi
 Dilerseniz `~/.gemini/config/mcp_config.json` dosyası içerisindeki `"mcpServers"` bloğuna doğrudan şu girdiyi ekleyebilirsiniz:
@@ -123,6 +125,7 @@ Hassas veriler veya geçici ayarlar kod değiştirilmeden ortam değişkenleri �
 | :--- | :--- | :--- |
 | `AGY_BROWSER_FETCH_MS` | `30000` | Tarayıcı JS döngüsünün yerel kota sorgulama periyodu (milisaniye) |
 | `AGY_WATCHER_CHECK_SEC` | `8` | Lider sürecin pencere varlığını ve rozet durumunu denetleme sıklığı (saniye) |
+| `AGY_WATCHER_NOTIFY_SEC` | `60` | Lider sürecin masaüstü bildirimleri için buluttan kota kontrol sıklığı (saniye) |
 | `AGY_THRESHOLD_HIGH` | `50` | Yeşil gösterge eşik yüzdesi (`> %50`) |
 | `AGY_THRESHOLD_LOW` | `20` | Sarı gösterge eşik yüzdesi (`> %20`, altı kırmızı) |
 | `AGY_PULSE_ALERT_THRESHOLD_PCT` | `15` | Kritik kota kırmızı nabız animasyonu eşiği (`≤ %15`) |
@@ -143,6 +146,9 @@ make status
 
 # Açık olan Antigravity Desktop penceresine rozeti anında zorla enjekte eder
 make inject
+
+# Antigravity 2.33+ için kullanıcı-seviyesi kalıcı CDP launcher override kurar
+make enable-cdp
 
 # Masaüstüne örnek bir kritik kota test bildirimi gönderir
 make test-notify

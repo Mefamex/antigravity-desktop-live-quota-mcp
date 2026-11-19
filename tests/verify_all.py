@@ -17,6 +17,7 @@ import sys
 
 sys.dont_write_bytecode = True
 
+import argparse
 import json
 import os
 import shutil
@@ -55,6 +56,14 @@ def call_tool(proc: subprocess.Popen[str], req_id: int, name: str, args: dict[st
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Antigravity Quota MCP Doğrulama Testleri")
+    parser.add_argument(
+        "--strict-cdp",
+        action="store_true",
+        help="CDP hedefi bulunamazsa testi geçmek yerine hata ver.",
+    )
+    args = parser.parse_args()
+
     print("=" * 68)
     print("1. SOĞUK BAŞLANGIÇ (COLD START) & MCP EL SIKIŞMA TESTİ")
     print("=" * 68)
@@ -141,15 +150,33 @@ def main() -> int:
         status2_after = call_tool(proc2, 4, "get_instance_status")
         print(f"• Süreç 2 Yeni Durumu: PID={status2_after['pid']}, Rol={status2_after['role']}, LiderPID={status2_after['leader_pid']}")
         assert status2_after["role"] == "LEADER", "Süreç 1 kapandığında Süreç 2 otomatik LEADER olmalıydı!"
-        print("[PASS] Otomatik Failover doğrulandı: Süreç 2 kesintisiz şekilde LEADER oldu!")
+        assert status2_after.get("server_version") == "1.2.0", f"Beklenen sürüm 1.2.0, gelen: {status2_after.get('server_version')}"
+        cdp_status = status2_after.get("cdp_status", {})
+        for req_key in ("cdp_available", "reason", "fix_hint", "antigravity_running", "has_remote_debugging_flag"):
+            assert req_key in cdp_status, f"cdp_status içinde '{req_key}' alanı eksik!"
+        print(f"• CDP Tanılama: available={cdp_status['cdp_available']}, reason={cdp_status['reason']}")
+        print("[PASS] Otomatik Failover, sürüm (1.2.0) ve cdp_status alanları doğrulandı!")
 
         print("\n" + "=" * 68)
-        print("5. CANLI PENCERE ROZET ENJEKSİYONU (CDP) TESTİ")
+        print("5. CANLI PENCERE ROZET ENJEKSİYONU (CDP) & PAYLOAD TESTİ")
         print("=" * 68)
+
+        from src.ui_payload import build_injection_js
+
+        js_payload = build_injection_js()
+        for token in ("model-selector-trigger", "orchestrator", "neon", "hydrogen", "fetchSeq", "lastAppliedSeq"):
+            assert token in js_payload, f"UI JS payload içinde '{token}' bulunamadı!"
+        print("[PASS] UI JS payload yeni model tespiti (Neon/Hydrogen/Orchestrator) ve fetchSeq koruması içeriyor!")
 
         inj = call_tool(proc2, 5, "reinject_badge", {"force": True})
         print(f"• Enjeksiyon Sonucu: {json.dumps(inj, ensure_ascii=False)}")
-        assert inj["ok"] is True
+        if cdp_status.get("cdp_available") or args.strict_cdp:
+            assert inj["ok"] is True, f"CDP erişilebilir/zorunlu olduğu halde enjeksiyon başarısız: {inj}"
+        else:
+            assert inj["ok"] is False
+            assert "diagnostics" in inj and inj["diagnostics"].get("reason") != ""
+            assert inj.get("message", "") != ""
+            print(f"[SKIP/INFO] Canlı CDP penceresi şu an kapalı (Neden: {inj['diagnostics']['reason']}). Mesaj doğrulandı.")
 
         print("\n" + "=" * 68)
         print("6. SCRATCH TEMİZLİĞİ VE TÜM MCP ARAÇLARI (TOOLS/LIST) TESTİ")

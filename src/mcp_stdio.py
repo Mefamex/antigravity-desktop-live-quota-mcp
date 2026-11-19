@@ -21,6 +21,7 @@ import sys
 from typing import Any
 
 import config
+from src.discovery import diagnose_cdp_status
 from src.lock import LeaderLock
 from src.logger import get_logger
 from src.quota_client import fetch_live_quota
@@ -140,12 +141,14 @@ def _handle_tool_call(
     if name == "get_instance_status":
         holder_pid = lock.read_holder_pid()
         status = {
+            "server_version": config.SERVER_VERSION,
             "pid": os.getpid(),
             "role": "LEADER" if lock.is_leader else "STANDBY",
             "leader_pid": holder_pid,
             "lock_file": str(config.LOCK_FILE_PATH),
             "devtools_port_file": str(config.DEVTOOLS_PORT_FILE),
             "ui_injection_enabled": config.UI_Injection_Enabled,
+            "cdp_status": diagnose_cdp_status(),
         }
         return (False, status)
 

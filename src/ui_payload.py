@@ -67,6 +67,8 @@ def build_injection_js() -> str:
     const state = {{
         active: true,
         isRefreshing: false,
+        fetchSeq: 0,
+        lastAppliedSeq: 0,
         fetchTimerId: null,
         renderTimerId: null,
         observer: null,
@@ -158,21 +160,55 @@ def build_injection_js() -> str:
 
     function detectActiveModelGroup() {{
         try {{
-            const btn = document.querySelector('button[aria-label*="Select model, current:"]');
+            const btn = document.querySelector(
+                'button[data-testid="model-selector-trigger"], button[aria-label*="Select model, current:"]'
+            );
             let label = btn ? (btn.getAttribute('aria-label') || btn.innerText || '') : '';
             if (!label) {{
                 const anyBtn = Array.from(document.querySelectorAll('button')).find(b => {{
                     const t = (b.innerText || '').toLowerCase();
-                    return t.includes('flash') || t.includes('pro') || t.includes('argon') || t.includes('claude') || t.includes('gpt');
+                    return (
+                        t.includes('neon') ||
+                        t.includes('hydrogen') ||
+                        t.includes('orchestrator') ||
+                        t.includes('flash') ||
+                        t.includes('pro') ||
+                        t.includes('argon') ||
+                        t.includes('claude') ||
+                        t.includes('gpt') ||
+                        t.includes('sonnet') ||
+                        t.includes('opus')
+                    );
                 }});
                 if (anyBtn) label = anyBtn.innerText;
             }}
             const lower = label.toLowerCase();
             if (lower.includes('argon')) return 'argon';
             if (lower.includes('claude') || lower.includes('gpt') || lower.includes('sonnet') || lower.includes('opus')) return 'claude';
-            if (lower.includes('flash') || lower.includes('gemini') || lower.includes('pro')) return 'gemini';
+            if (lower.includes('flash') || lower.includes('gemini') || lower.includes('pro') || lower.includes('neon') || lower.includes('hydrogen') || lower.includes('orchestrator')) return 'gemini';
         }} catch (_err) {{}}
         return '';
+    }}
+
+    function applyQuotaResponse(data, seq) {{
+        if (!data || seq < state.lastAppliedSeq) return false;
+        state.lastAppliedSeq = seq;
+        state.lastQuota = data;
+        let curG5h = 100;
+        let curC5h = 100;
+        for (const g of data.groups || []) {{
+            for (const b of g.buckets || []) {{
+                if (b.window === "5h") {{
+                    const pct = Math.round((b.remainingFraction ?? 1) * 100);
+                    const gName = g.displayName || "";
+                    if (gName.includes("Gemini") && !gName.includes("Argon")) curG5h = pct;
+                    if (gName.includes("Claude") || gName.includes("GPT")) curC5h = pct;
+                }}
+            }}
+        }}
+        state.history.push({{ t: Date.now(), g5h: curG5h, c5h: curC5h }});
+        if (state.history.length > 30) state.history.shift();
+        return true;
     }}
 
     async function fetchQuotaFromLocalServer(forceRefresh = false) {{
@@ -240,24 +276,15 @@ def build_injection_js() -> str:
                 state.isRefreshing = true;
                 badge.style.opacity = "0.5";
                 badge.style.cursor = "wait";
+                const seq = ++state.fetchSeq;
                 try {{
                     const fresh = await fetchQuotaFromLocalServer(true);
-                    if (fresh) {{
-                        state.lastQuota = fresh;
-                        let curG5h = 100, curC5h = 100;
-                        for (const g of fresh.groups || []) {{
-                            for (const b of g.buckets || []) {{
-                                if (b.window === "5h") {{
-                                    const pct = Math.round((b.remainingFraction ?? 1) * 100);
-                                    const gName = g.displayName || "";
-                                    if (gName.includes("Gemini") && !gName.includes("Argon")) curG5h = pct;
-                                    if (gName.includes("Claude") || gName.includes("GPT")) curC5h = pct;
-                                }}
-                            }}
+                    if (applyQuotaResponse(fresh, seq)) {{
+                        if (state.fetchTimerId) {{
+                            clearInterval(state.fetchTimerId);
                         }}
-                        state.history.push({{ t: Date.now(), g5h: curG5h, c5h: curC5h }});
-                        if (state.history.length > 30) state.history.shift();
-                        renderBadge(fresh);
+                        state.fetchTimerId = setInterval(updateCycle, POLL_MS);
+                        renderBadge(state.lastQuota);
                         badge.style.borderColor = "rgba(96, 165, 250, 0.8)";
                         setTimeout(() => {{
                             if (badge) badge.style.borderColor = "rgba(255, 255, 255, 0.12)";
@@ -281,14 +308,19 @@ def build_injection_js() -> str:
         let geminiWeeklyReset = "";
         let gemini5h = 100;
         let gemini5hReset = "";
+        let hasGeminiWeekly = false;
+        let hasGemini5h = false;
 
         let argonWeekly = 100;
         let argonWeeklyReset = "";
+        let hasArgon = false;
 
         let claudeWeekly = 100;
         let claudeWeeklyReset = "";
         let claude5h = 100;
         let claude5hReset = "";
+        let hasClaudeWeekly = false;
+        let hasClaude5h = false;
 
         let minPct = 100;
         const tooltipLines = ["Canlı Kota Durumu (Yenilemek için tıklayın):"];
@@ -303,24 +335,29 @@ def build_injection_js() -> str:
                     if (b.window === "weekly") {{
                         geminiWeekly = pct;
                         geminiWeeklyReset = b.resetTime || "";
+                        hasGeminiWeekly = true;
                     }}
                     if (b.window === "5h") {{
                         gemini5h = pct;
                         gemini5hReset = b.resetTime || "";
+                        hasGemini5h = true;
                     }}
                 }} else if (gName.includes("Argon")) {{
                     if (b.window === "weekly") {{
                         argonWeekly = pct;
                         argonWeeklyReset = b.resetTime || "";
+                        hasArgon = true;
                     }}
                 }} else if (gName.includes("Claude") || gName.includes("GPT")) {{
                     if (b.window === "weekly") {{
                         claudeWeekly = pct;
                         claudeWeeklyReset = b.resetTime || "";
+                        hasClaudeWeekly = true;
                     }}
                     if (b.window === "5h") {{
                         claude5h = pct;
                         claude5hReset = b.resetTime || "";
+                        hasClaude5h = true;
                     }}
                 }}
                 if (b.description) {{
@@ -328,6 +365,9 @@ def build_injection_js() -> str:
                 }}
             }}
         }}
+
+        const hasGemini = hasGeminiWeekly || hasGemini5h;
+        const hasClaude = hasClaudeWeekly || hasClaude5h;
 
         // Kritik kota nabız efekti kontrolü
         if (ENABLE_PULSE && minPct <= PULSE_THRESHOLD) {{
@@ -348,8 +388,8 @@ def build_injection_js() -> str:
         const activeGroup = detectActiveModelGroup();
         tooltipLines.push(`\\nAktif Model Grubu: ${{activeGroup || "Bilinmiyor"}}`);
 
-        const gBurn = calculateBurnRate("g5h", gemini5h);
-        const cBurn = calculateBurnRate("c5h", claude5h);
+        const gBurn = hasGemini5h ? calculateBurnRate("g5h", gemini5h) : null;
+        const cBurn = hasClaude5h ? calculateBurnRate("c5h", claude5h) : null;
         if (gBurn) {{
             tooltipLines.push(`• Gemini (5h) Tüketim: ${{gBurn.text}}`);
         }}
@@ -379,48 +419,51 @@ def build_injection_js() -> str:
             return `<span style="color:${{pickColor(val)}}; font-weight:700; font-size:12px; letter-spacing:-0.2px;">%${{val}}</span>`;
         }}
 
-        badge.innerHTML = `
-            <div style="display:flex; align-items:center; gap:3px;">
-                <span style="${{gLabelStyle}}">⚡G:</span>
-                ${{renderPct(geminiWeekly)}}<span style="${{timeTagStyle}}">${{gWeeklyTime}}</span>
-                <span style="color:#6b7280; font-size:10px; margin:0 1px;">/</span>
-                ${{renderPct(gemini5h)}}<span style="${{timeTagStyle}}">${{g5hTime}}</span>
-            </div>
-            <span style="color:#6b7280; margin:0 1px;">|</span>
-            <div style="display:flex; align-items:center; gap:3px;">
-                <span style="${{arLabelStyle}}">Ar:</span>
-                ${{renderPct(argonWeekly)}}<span style="${{timeTagStyle}}">${{arWeeklyTime}}</span>
-            </div>
-            <span style="color:#6b7280; margin:0 1px;">|</span>
-            <div style="display:flex; align-items:center; gap:3px;">
-                <span style="${{cLabelStyle}}">C:</span>
-                ${{renderPct(claudeWeekly)}}<span style="${{timeTagStyle}}">${{cWeeklyTime}}</span>
-                <span style="color:#6b7280; font-size:10px; margin:0 1px;">/</span>
-                ${{renderPct(claude5h)}}<span style="${{timeTagStyle}}">${{c5hTime}}</span>
-            </div>
-        `;
+        const segments = [];
+        if (hasGemini) {{
+            const gParts = [];
+            if (hasGeminiWeekly) gParts.push(`${{renderPct(geminiWeekly)}}<span style="${{timeTagStyle}}">${{gWeeklyTime}}</span>`);
+            if (hasGemini5h) gParts.push(`${{renderPct(gemini5h)}}<span style="${{timeTagStyle}}">${{g5hTime}}</span>`);
+            segments.push(`
+                <div style="display:flex; align-items:center; gap:3px;">
+                    <span style="${{gLabelStyle}}">⚡G:</span>
+                    ${{gParts.join('<span style="color:#6b7280; font-size:10px; margin:0 1px;">/</span>')}}
+                </div>
+            `);
+        }}
+        if (hasArgon) {{
+            segments.push(`
+                <div style="display:flex; align-items:center; gap:3px;">
+                    <span style="${{arLabelStyle}}">Ar:</span>
+                    ${{renderPct(argonWeekly)}}<span style="${{timeTagStyle}}">${{arWeeklyTime}}</span>
+                </div>
+            `);
+        }}
+        if (hasClaude) {{
+            const cParts = [];
+            if (hasClaudeWeekly) cParts.push(`${{renderPct(claudeWeekly)}}<span style="${{timeTagStyle}}">${{cWeeklyTime}}</span>`);
+            if (hasClaude5h) cParts.push(`${{renderPct(claude5h)}}<span style="${{timeTagStyle}}">${{c5hTime}}</span>`);
+            segments.push(`
+                <div style="display:flex; align-items:center; gap:3px;">
+                    <span style="${{cLabelStyle}}">C:</span>
+                    ${{cParts.join('<span style="color:#6b7280; font-size:10px; margin:0 1px;">/</span>')}}
+                </div>
+            `);
+        }}
+
+        badge.innerHTML = segments.length > 0
+            ? segments.join('<span style="color:#6b7280; margin:0 1px;">|</span>')
+            : "<span>⚡ Kota: Veri Yok</span>";
         badge.title = tooltipLines.join("\\n");
         return true;
     }}
 
     async function updateCycle() {{
+        if (state.isRefreshing) return;
+        const seq = ++state.fetchSeq;
         const q = await fetchQuotaFromLocalServer(true);
         if (q) {{
-            state.lastQuota = q;
-            let curG5h = 100;
-            let curC5h = 100;
-            for (const g of q.groups || []) {{
-                for (const b of g.buckets || []) {{
-                    if (b.window === "5h") {{
-                        const pct = Math.round((b.remainingFraction ?? 1) * 100);
-                        const gName = g.displayName || "";
-                        if (gName.includes("Gemini") && !gName.includes("Argon")) curG5h = pct;
-                        if (gName.includes("Claude") || gName.includes("GPT")) curC5h = pct;
-                    }}
-                }}
-            }}
-            state.history.push({{ t: Date.now(), g5h: curG5h, c5h: curC5h }});
-            if (state.history.length > 30) state.history.shift();
+            applyQuotaResponse(q, seq);
         }}
         renderBadge(state.lastQuota);
     }}

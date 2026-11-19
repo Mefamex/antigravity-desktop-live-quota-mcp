@@ -9,7 +9,7 @@
 # =============================================================================
 
 .DEFAULT_GOAL := help
-.PHONY: help install reinstall update run clean remove status inject test verify delCache
+.PHONY: help install reinstall update run status inject test-notify test verify clean clean-scratch delCache remove enable-cdp
 
 help: ## Mevcut komutları ve açıklamalarını listeler
 	@echo "Kullanım: make [komut]"
@@ -25,6 +25,10 @@ install: ## MCP sunucusunu mcp_config.json içine kaydeder ve pencereye rozeti e
 	@chmod +x install.sh
 	@./install.sh
 
+enable-cdp: ## Antigravity Desktop 2.33+ için kullanıcı-seviyesi CDP launcher override kurar
+	@chmod +x install.sh
+	@./install.sh --cdp-only
+
 reinstall: remove install ## Kurulumu kaldırıp sıfırdan tertemiz yeniden kurar
 	@echo "==> Yeniden kurulum tamamlandı."
 
@@ -33,9 +37,16 @@ update: clean ## Bağımlılık gerektirmez; bytecode temizler ve testleri doğr
 	@python3 -B tests/verify_all.py
 	@echo "==> Güncelleme ve doğrulama tamamlandı."
 
-remove: ## MCP kaydını mcp_config.json içinden temizler ve önbellekleri siler
+remove: ## MCP kaydını mcp_config.json içinden ve yönetilen launcher dosyalarından temizler
 	@echo "==> MCP kaydı temizleniyor..."
 	@python3 -B -c "import json, os; p=os.path.expanduser('~/.gemini/config/mcp_config.json'); (lambda f: [f and [d.setdefault('mcpServers',{}).pop('antigravity-desktop-live-quota-mcp',None), d.setdefault('mcpServers',{}).pop('antigravity-quota',None), open(p,'w').write(json.dumps(d,indent=2))] for d in [json.load(open(p))]])(os.path.exists(p))" || true
+	@for f in "$(HOME)/.local/share/applications/antigravity.desktop" "$(HOME)/.local/bin/antigravity"; do \
+		if [ -f "$$f" ] && grep -q "managed-by: antigravity-desktop-live-quota-mcp" "$$f" 2>/dev/null; then \
+			rm -f "$$f" && echo "[INFO] Temizlendi -> $$f"; \
+		fi; \
+	done
+	@command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$(HOME)/.local/share/applications" >/dev/null 2>&1 || true
+	@command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 --noincremental >/dev/null 2>&1 || true
 	@make clean
 	@echo "==> Kaldırma işlemi tamamlandı."
 
