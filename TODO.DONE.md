@@ -194,57 +194,57 @@
 
 ### [2026-11-07 21:56] — 12. `mcp_config.json` Kaydı ve Kurulum Otomasyonu
 - `~/.gemini/config/mcp_config.json` dosyasına `antigravity-quota` sunucusu resmen eklendi ve doğrulandı.
-- Projeyi indiren herkesin tek tıkla kurabilmesi için [`install.sh`](file:///home/mfmx/Desktop/antigravity-quota-mcp/install.sh) otomatik kurulum betiği yazıldı.
+- Projeyi indiren herkesin tek tıkla kurabilmesi için [`install.sh`](./install.sh) otomatik kurulum betiği yazıldı.
 
 ---
 
 ### [2026-11-07 21:52] — 11. Otomatik Doğrulama ve Çakışma Testi
-- [`tests/verify_all.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/tests/verify_all.py) ile 2 eşzamanlı MCP süreci başlatılarak `LEADER`/`STANDBY` seçimi, lider kapandığında otomatik failover ve canlı CDP enjeksiyonu doğrulandı (`make test`).
+- [`tests/verify_all.py`](./tests/verify_all.py) ile 2 eşzamanlı MCP süreci başlatılarak `LEADER`/`STANDBY` seçimi, lider kapandığında otomatik failover ve canlı CDP enjeksiyonu doğrulandı (`make test`).
 
 ---
 
 ### [2026-11-07 21:51] — 10. Sıfır Bağımlılıklı MCP Stdio Sunucusu
-- [`src/mcp_stdio.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/mcp_stdio.py) ve [`main.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/main.py) tamamlandı; `get_quota_status`, `reinject_badge` ve `get_instance_status` araçları eklendi.
+- [`src/mcp_stdio.py`](./src/mcp_stdio.py) ve [`main.py`](./main.py) tamamlandı; `get_quota_status`, `reinject_badge` ve `get_instance_status` araçları eklendi.
 
 ---
 
 ### [2026-11-07 21:50] — 9. Idempotent Tarayıcı Yükü & Watcher
-- [`src/ui_payload.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/ui_payload.py) ve [`src/ui_watcher.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/ui_watcher.py) modülleri `MutationObserver` ve `clearInterval` korumasıyla kodlandı.
+- [`src/ui_payload.py`](./src/ui_payload.py) ve [`src/ui_watcher.py`](./src/ui_watcher.py) modülleri `MutationObserver` ve `clearInterval` korumasıyla kodlandı.
 
 ---
 
 ### [2026-11-07 21:49] — 8. Sıfır Bağımlılıklı CDP WebSocket İstemcisi
-- [`src/cdp_client.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/cdp_client.py) saf yerleşik Python `socket` kütüphanesiyle RFC-6455 standartlarında yazıldı.
+- [`src/cdp_client.py`](./src/cdp_client.py) saf yerleşik Python `socket` kütüphanesiyle RFC-6455 standartlarında yazıldı.
 
 ---
 
 ### [2026-11-07 21:49] — 7. ConnectRPC Kota İstemcisi
-- [`src/quota_client.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/quota_client.py) yerel `language_server`'dan `RetrieveUserQuotaSummary` yanıtını çeken ve ham veriyi koruyan istemci tamamlandı.
+- [`src/quota_client.py`](./src/quota_client.py) yerel `language_server`'dan `RetrieveUserQuotaSummary` yanıtını çeken ve ham veriyi koruyan istemci tamamlandı.
 
 ---
 
 ### [2026-11-07 21:48] — 6. Süreç ve CDP Keşif Modülü
-- [`src/discovery.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/discovery.py) `language_server` PID/token/port ve `DevToolsActivePort` keşfini modüler hale getirdi.
+- [`src/discovery.py`](./src/discovery.py) `language_server` PID/token/port ve `DevToolsActivePort` keşfini modüler hale getirdi.
 
 ---
 
 ### [2026-11-07 21:48] — 5. Çoklu Örnek Çakışma Önleyici (Leader Election)
-- [`src/lock.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/lock.py) Linux çekirdeği `fcntl.flock` mekanizması ile tekil liderlik ve otomatik devir (failover) mimarisi kuruldu.
+- [`src/lock.py`](./src/lock.py) Linux çekirdeği `fcntl.flock` mekanizması ile tekil liderlik ve otomatik devir (failover) mimarisi kuruldu.
 
 ---
 
 ### [2026-11-07 21:48] — 4. Tip Güvenli Veri Modelleri
-- [`src/models.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/models.py) veri sınıfları (`QuotaReport`, `GroupQuota`, `BucketQuota`) kodlandı.
+- [`src/models.py`](./src/models.py) veri sınıfları (`QuotaReport`, `GroupQuota`, `BucketQuota`) kodlandı.
 
 ---
 
 ### [2026-11-07 21:47] — 3. Stderr İzole Loglama
-- [`src/logger.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/src/logger.py) `stdout`'a asla dokunmayan, 4-karakter hizalı (`INFO`, `WARN`, `ERR `, `DBG `) logger yazıldı.
+- [`src/logger.py`](./src/logger.py) `stdout`'a asla dokunmayan, 4-karakter hizalı (`INFO`, `WARN`, `ERR `, `DBG `) logger yazıldı.
 
 ---
 
 ### [2026-11-07 21:47] — 2. Merkezi Yapılandırma
-- [`config.py`](file:///home/mfmx/Desktop/antigravity-quota-mcp/config.py) 3 katmanlı ayar mimarisiyle hazırlandı.
+- [`config.py`](./config.py) 3 katmanlı ayar mimarisiyle hazırlandı.
 
 ---
 

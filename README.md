@@ -114,7 +114,7 @@ Dilerseniz `~/.gemini/config/mcp_config.json` dosyası içerisindeki `"mcpServer
 
 ## 6. Yapılandırma (Configuration Guide)
 
-[`config.py`](file:///mnt/DiskD/SOFTWARE/Github-repos/antigravity-desktop-live-quota-mcp/config.py) dosyası 3 katmanlı ayar önceliği uygular:
+[`config.py`](./config.py) dosyası 3 katmanlı ayar önceliği uygular:
 ```text
 Ortam Değişkeni (ENV)  ──>  config.py Sabitleri  ──>  Kod İçi Güvenli Varsayılanlar
 ```
@@ -130,6 +130,10 @@ Hassas veriler veya geçici ayarlar kod değiştirilmeden ortam değişkenleri �
 | `AGY_THRESHOLD_LOW` | `20` | Sarı gösterge eşik yüzdesi (`> %20`, altı kırmızı) |
 | `AGY_PULSE_ALERT_THRESHOLD_PCT` | `15` | Kritik kota kırmızı nabız animasyonu eşiği (`≤ %15`) |
 | `AGY_ENABLE_PULSE_ALERT` | `true` | Nabız animasyonunu etkinleştirme bayrağı |
+| `AGY_ENABLE_NOTIFICATIONS` | `true` | Linux `notify-send` masaüstü bildirimlerini etkinleştirir |
+| `AGY_NOTIFY_THRESHOLD_PCT` | `15` | Kritik kota masaüstü bildirimi eşik yüzdesi (`≤ %15`) |
+| `AGY_NOTIFY_COOLDOWN_MIN` | `30` | Aynı kota havuzu için ardışık uyarılar arası bekleme süresi (dakika) |
+| `AGY_ENABLE_RESET_NOTIFY` | `true` | Kota sıfırlanıp `%90+` seviyesine döndüğünde yenilenme bildirimi gönderir |
 
 ---
 
