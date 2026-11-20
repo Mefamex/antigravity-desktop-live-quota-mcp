@@ -421,14 +421,14 @@ def main() -> int:
         status2_after = call_tool(proc2, 4, "get_instance_status")
         print(f"• Process 2 New Status: PID={status2_after['pid']}, Role={status2_after['role']}, LeaderPID={status2_after['leader_pid']}")
         assert status2_after["role"] == "LEADER", "Process 2 should automatically become LEADER when Process 1 exits!"
-        assert status2_after.get("server_version") == "1.2.0", f"Expected version 1.2.0, got: {status2_after.get('server_version')}"
+        assert status2_after.get("server_version") == "1.3.0", f"Expected version 1.3.0, got: {status2_after.get('server_version')}"
         cdp_status = status2_after.get("cdp_status", {})
         for req_key in ("cdp_available", "reason", "fix_hint", "antigravity_running", "has_remote_debugging_flag"):
             assert req_key in cdp_status, f"Missing '{req_key}' field in cdp_status!"
         if cdp_status.get("cdp_available"):
             assert cdp_status.get("antigravity_running") is True, "antigravity_running must be True when CDP is available!"
         print(f"• CDP Diagnostics: available={cdp_status['cdp_available']}, running={cdp_status['antigravity_running']}, reason={cdp_status['reason']}")
-        print("[PASS] Automatic Failover, version (1.2.0), and cdp_status fields verified!")
+        print("[PASS] Automatic Failover, version (1.3.0), and cdp_status fields verified!")
 
         print("\n" + "=" * 68)
         print("5. LIVE WINDOW BADGE INJECTION (CDP) & PAYLOAD TEST")

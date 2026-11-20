@@ -11,7 +11,7 @@
 ### Saf Python Standart Kütüphanesi (Zero-Dependency)
 - **Tercih:** Harici hiçbir paket (`mcp`, `websockets`, `pydantic`, `pyyaml`) yüklenmeden saf Python stdlib (`socket`, `struct`, `fcntl`, `urllib`, `json`) kullanıldı.
 - **Kazanç:**
-  - Soğuk başlangıç süresi **~68-80 ms**'dir (Resmi Python `mcp` SDK'sı `FastMCP` ile ~455 ms sürüyordu).
+  - Soğuk başlangıç süresi **~55-70 ms**'dir (Resmi Python `mcp` SDK'sı `FastMCP` ile ~455 ms sürüyordu).
   - RAM tüketimi sadece **~9-12 MB**'dır (Harici paketlerle ~45-60 MB).
   - Arch Linux veya Python sürümü güncellense dahi paket kırılması yaşanmaz; sanal ortam (`venv`) gerektirmez.
 - **Kabul Edilen Ödün (Trade-off):** RFC-6455 WebSocket istemcisi (`src/cdp_client.py`) ve JSON-RPC 2.0 stdio sunucusu (`src/mcp_stdio.py`) sıfırdan el ile yazıldı. Kod miktarı ~200 satır arttı ancak bakım maliyeti sıfırlandı.
@@ -19,6 +19,13 @@
 ### Çekirdek Seviyesinde Lider Seçimi (`fcntl.flock`)
 - **Tercih:** `$XDG_RUNTIME_DIR/antigravity-desktop-live-quota.lock` dosyası üzerinde non-blocking Linux kernel kilidi uygulandı.
 - **Kazanç:** Kullanıcı hem masaüstü uygulamasını, hem CLI'ı hem de yeni pencereleri açtığında yalnızca tek bir lider süreç CDP soketine bağlanır. Soket çakışması ve çift rozet riski %100 önlenir. Lider çökerse Linux çekirdeği kilidi anında serbest bırakır ve yedek süreç (`STANDBY`) sıfır gecikmeyle lider olur.
+
+### v1.3.0 Denetim ve Mühendislik Kararları
+1. **RFC-6455 Tam Çerçeve Uyumu (`src/cdp_client.py`):** Büyük CDP yanıtlarındaki parçalı çerçevelerin (`FIN=0` / `0x00` continuation) birleştirilmesi, sunucu `Ping` (`0x09`) çerçevelerine maskeli `Pong` (`0x0A`, `_send_ws_control_frame`) yanıtı verilmesi ve `Close` (`0x08`) kontrol çerçevelerinin temiz işlenmesi harici paket olmadan sağlandı.
+2. **Dinamik Model Eşleme ve Kova Bazlı Burn-Rate (`src/ui_payload.py`):** Sabit model listesi yerine `detectActiveModelGroup(quota)` ile `quota.groups[].description` ve `displayName` üzerinden dinamik eşleştirme (yeni çıkacak modeller için anahtar kelime fallback'i ile) ve 5 saatlik Gemini (`g5h`) / Claude-GPT (`c5h`) kotaları için ayrı geçmiş tamponları kullanılarak kota `> +%5` arttığında kova bazlı burn-rate sıfırlaması uygulandı.
+3. **Bulut Hız Sınırlama & Endpoint Önbelleği (`config.py`, `src/quota_client.py`, `src/ui_watcher.py`):** Tarayıcı kota yoklama aralığı `60.000 ms`, masaüstü bildirim denetimi `120 saniye` olarak ayarlandı; UI rozeti aktifken (`cdp_active=True`) bildirim kontrolünün `force_refresh=(not cdp_active)` ile yerel önbelleği okuması sağlanarak çift bulut yenilemesi önlendi. Çalışan `(pid, port, scheme, csrf_token)` uç noktası `_CACHED_ENDPOINT` içinde önbelleklenerek sonraki yerel çağrıların önbellek isabetinde `~2-4 ms` sürmesi sağlandı.
+4. **Yerel CDP Güvenlik Dengesi ve Taşınabilir Kurulum (`install.sh`, `SECURITY.md`):** `--remote-debugging-port=0` bayrağının `127.0.0.1` loopback arayüzünde diğer yerel aynı-kullanıcı süreçlerine CDP (`Runtime.evaluate`) erişimi açması nedeniyle sıkı izolasyon isteyen kullanıcılar için `--no-cdp-launcher` seçeneği sunuldu (`AGY_UI_INJECTION_ENABLED=false` belgelemesiyle birlikte). Ayrıca `install.sh` içinde `$PATH` ve standart kurulum yollarından yönetilen sarmalayıcıyı atlayarak gerçek ikiliyi çözen `resolve_system_antigravity_bin()` eklendi.
+5. **Tam İngilizce Kod Tabanı (`refactor(i18n)`):** Küresel topluluk uyumu için tüm kaynak kod, loglar, UI rozet/bildirim metinleri, kurulum/derleme betikleri ve testler davranış değişikliği olmaksızın tek izole commit ile %100 İngilizceye standardize edildi.
 
 ---
 
@@ -41,12 +48,13 @@
 
 ## 3. Doğrulanmış Sistem Sınırları ve Eşikler (Verified Constraints)
 
-- **Soğuk Başlangıç Gecikmesi:** `68.0 ms` — `85.0 ms` (Bizzat `make test` ile ölçüldü).
+- **Soğuk Başlangıç Gecikmesi:** `~55-70 ms` (Bizzat `make test` ile ölçüldü).
 - **Rozet Boyutları:** Genişlik `400.8 px`, Yükseklik `24.0 px` (Üst bar yüksekliği: `35.0 px`).
 - **Yoklama (Polling) Eşiği:**
-  - Ağdan kota çekme: `30.000 ms` (Sunucuya yük bindirmemek için).
+  - Ağdan kota çekme (`BROWSER_FETCH_INTERVAL_MS`): `60.000 ms` (Bulut hız sınırlarını korumak için).
   - DOM geri sayım render döngüsü: `5.000 ms` (Ağ isteği yapmadan sadece yerel süreyi akıtır).
-  - Lider izleyici kontrol sıklığı: `8 saniye`.
+  - Lider izleyici kontrol sıklığı (`WATCHER_CHECK_INTERVAL_SEC`): `8 saniye`.
+  - Lider masaüstü bildirim yoklaması (`WATCHER_NOTIFY_INTERVAL_SEC`): `120 saniye` (`cdp_active=True` iken yerel önbellekten okur).
 - **Zaman Aşımı (Timeout):** Yerel socket ve HTTP bağlantıları için `2.0 saniye`.
 
 ---
@@ -73,7 +81,7 @@
 ## 5. Sahadan Süzülen İlkeler (Lessons Learned & Heuristics)
 
 - **Tahminle Koda Girme:** Emin olmadığın API parametrelerini tahmin etmek yerine doğrudan ikili dosyayı veya protokolü incele (`strings /opt/Antigravity/resources/bin/language_server`).
-- **Idempotency Şarttır:** Tarayıcıya enjekte edilen her script, kendisinden önce çalışan zamanlayıcıları (`clearInterval`) ve gözlemcileri (`disconnect`) temizlemelidir. Asla çift döngü veya hafıza sızıntısı bırakılamaz.
+- **Idempotency Şarttır:** Tarayıcıya enjekte edilen her script, kendisinden önce çalışan zamanlayıcıları (`clearInterval`), bekleyen `requestAnimationFrame` yeniden bağlama isteklerini (`reattachFrameId` üzerinden `cancelAnimationFrame`) ve gözlemcileri (`disconnect`) temizlemelidir. `MutationObserver` yalnızca `requestAnimationFrame` ile debounce edilerek çalışmalı; asla çift döngü veya hafıza sızıntısı bırakılamaz.
 - **Her Değişiklik Canlı Kanıtla Kapanır:** Kod yazıldıktan sonra mutlaka `make test` koşturulmalı ve açık Antigravity penceresindeki DOM durumu CDP ile kontrol edilmelidir.
 
 ---

@@ -4,6 +4,31 @@
 
 ---
 
+### [2026-11-21 02:10] — 30. v1.3.0 Kapsamlı Denetim Düzeltmeleri, Hız Sınırlama, Dinamik Model Eşleme ve İngilizce Kod Tabanı
+- **RFC-6455 WebSocket Tam Çerçeve Uyumu (`src/cdp_client.py`, `tests/verify_all.py`):**
+  - `_recv_ws_text_frame()` içine parçalı çerçeve (`FIN=0` / `0x00` continuation) birleştirme, `0x08` Close yönetimi ve sunucu `0x09` Ping çerçevelerine maskeli `0x0A` Pong (`_send_ws_control_frame()`) yanıtı eklendi.
+  - `tests/verify_all.py` 8. aşamaya `socket.socketpair()` ile parçalı çerçeve + araya giren Ping/Pong testi eklendi.
+- **Dinamik Model Eşleme, Kova Bazlı Burn-Rate ve rAF Debounce (`src/ui_payload.py`, `tests/verify_all.py`):**
+  - Sabit model listesi yerine `detectActiveModelGroup(quota)` ile `quota.groups[].description` ve `displayName` üzerinden dinamik model eşleştirme (+ anahtar kelime fallback'i) uygulandı.
+  - 5 saatlik kotalar için ayrı geçmiş tamponları (`state.history = { g5h: [], c5h: [] }`) kuruldu; kota `> +%5` oranında yenilendiğinde yalnızca ilgili kovanın burn-rate geçmişi sıfırlandı.
+  - `MutationObserver` yeniden bağlama yolu `requestAnimationFrame` (`reattachFrameId`) ile debounce edildi ve re-enjeksiyon sırasında `cancelAnimationFrame` temizliği eklendi; Node.js headless VM harness testleri `tests/verify_all.py` 5. aşamaya bağlandı.
+- **Bulut Hız Sınırlama & Endpoint Önbelleği (`config.py`, `src/quota_client.py`, `src/ui_watcher.py`):**
+  - `BROWSER_FETCH_INTERVAL_MS` varsayılanı `60_000` ms, `WATCHER_NOTIFY_INTERVAL_SEC` varsayılanı `120` saniye olarak güncellendi.
+  - Çalışan `(pid, port, scheme, csrf_token)` uç noktası `_CACHED_ENDPOINT` içinde önbelleklendi ve başarısızlıkta otomatik yeniden keşfe düşecek şekilde korundu (`~2-4 ms` önbellek isabeti).
+  - `UIWatcherThread.run()` içinde arayüz rozeti aktifken (`cdp_active=True`) çift bulut yenilemesini önlemek için `fetch_live_quota(force_refresh=(not cdp_active))` kullanıldı.
+- **Taşınabilir Kurulum & Sadeleştirilmiş Kaldırma (`install.sh`, `Makefile`):**
+  - `install.sh` içine `$PATH` ve standart kurulum dizinlerinden yönetilen sarmalayıcıyı atlayarak gerçek `antigravity` ikilisini bulan `resolve_system_antigravity_bin()` eklendi.
+  - `Makefile` `remove:` hedefindeki karmaşık iç içe lambda yerine okunabilir `_REMOVE_MCP_PY` Python bloğuna geçildi.
+- **İzole İngilizce Kod Tabanı Standardizasyonu (`refactor(i18n)`):**
+  - Tüm kaynak kod, loglar, UI rozet/bildirim metinleri, `install.sh`, `Makefile` ve `tests/verify_all.py` (17 dosya) davranış değişikliği olmadan tek izole commit ile %100 İngilizceye geçirildi.
+- **Taşınabilir Dokümantasyon & Yerel CDP Güvenlik Politikası (`README.md`, `SECURITY.md`):**
+  - `README.md` içindeki kişisel yollar kaldırıldı, yeni polling varsayılanları işlendi; `--remote-debugging-port=0` loopback güvenlik dengesi ile `--no-cdp-launcher` ve `AGY_UI_INJECTION_ENABLED=false` seçenekleri `README.md` Bölüm 8 ve `SECURITY.md` (`1.3.x` destek tablosuyla) içinde belgelendi.
+- **Sürüm Senkronizasyonu ve Doğrulama:**
+  - `config.py`, `pyproject.toml`, `.codex-plugin/plugin.json` ve `tests/verify_all.py` `1.3.0` sürümüne senkronize edildi; `NOTES.md` ve `README.md` (`Updated: 2026-11-21`) güncellendi.
+  - `tests/verify_all.py --strict-cdp` (8 aşamalı tam test zinciri + Node.js headless VM harness + canlı CDP enjeksiyonu) `~55-68 ms` soğuk başlangıç aralığında tüm kontrollerle başarıyla geçti.
+
+---
+
 ### [2026-11-19 18:45] — 29. Antigravity 2.33.0+ Uyumluluk, Kalıcı CDP Launcher, Yeni Model Desteği ve Hata Giderimi (v1.2.0)
 - **Kök Neden Tespiti (`app.asar` Karşılaştırmalı Analiz):**
   - Antigravity `2.32.1` -> `2.33.0` güncellemesinde `app.commandLine.appendSwitch('remote-debugging-port', '0')` varsayılanının kaldırıldığı ve bayraksız açılışta `removeStaleActivePortFile()` ile `~/.config/Antigravity/DevToolsActivePort` dosyasının silindiği tespit edildi.
@@ -148,8 +173,7 @@
 ---
 
 ### [2026-11-07 23:06] — 16. Kalıcı Depoya Taşıma ve Mefamex README Standardı Entegrasyonu
-- Proje kalıcı GitHub çalışma alanına taşındı:  
-  `/mnt/DiskD/SOFTWARE/Github-repos/antigravity-desktop-live-quota-mcp`
+- Proje kalıcı GitHub çalışma alanına (`<repo-kökü>`) taşındı.
 - `~/.gemini/config/mcp_config.json` dosyası yeni kalıcı mutlak yol ile güncellendi ve doğrulandı.
 - `README.md` kullanıcının diğer repolarındaki (`python-GSBwifi-alive`, `python-audio-to-arduino-visualizer`) standart üst başlık tablosu (**Author: Mefamex**, **Website: mefamex.com**, **License: MIT**, **Platform**, **Status**) ve zengin mimari anlatımla yenilendi.
 - `make test` ile tüm kilit, failover, 68 ms soğuk başlangıç ve CDP pencere enjeksiyon testleri başarıyla doğrulandı.
@@ -157,7 +181,7 @@
 ---
 
 ### [2026-11-07 22:56] — 15. Proje İsminin `antigravity-desktop-live-quota-mcp` Olarak Yenilenmesi
-- Proje dizini `/home/mfmx/Desktop/antigravity-desktop-live-quota-mcp` olarak yeniden adlandırıldı.
+- Proje dizini `<önceki-masaüstü-dizini>/antigravity-desktop-live-quota-mcp` olarak yeniden adlandırıldı.
 - `pyproject.toml`, `config.py` (`SERVER_NAME`), `install.sh`, `tests/verify_all.py` ve `README.md` dosyaları yeni isimle tam uyumlu hale getirildi.
 - `~/.gemini/config/mcp_config.json` dosyasına yeni isim ve mutlak yol kaydedildi, eski geçici anahtar temizlendi.
 - Tüm testler (`make test`) 75 ms soğuk başlangıç ve kusursuz lider seçimiyle doğrulandı.

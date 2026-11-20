@@ -6,7 +6,7 @@
 | **Website**  | [https://www.mefamex.com](https://www.mefamex.com)            |
 | **License**  | MIT                                                           |
 | **Created**  | 2026-11-07                                                    |
-| **Updated**  | 2026-11-19                                                    |
+| **Updated**  | 2026-11-21                                                    |
 | **Stack**    | Python ≥ 3.10 (Sıfır Harici Bağımlılık / Pure Python Stdlib)  |
 | **Platform** | Linux (Arch Linux, KDE Plasma 6, Wayland, X11)                |
 | **Status**   | ✅ Production Ready                                            |
@@ -36,7 +36,7 @@ Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan ca
 
 ### Kritik Mimari Metrikleri
 
-- **Soğuk Başlangıç Gecikmesi:** `68.0 ms — 80.3 ms` (Resmi Python MCP SDK'sına göre ~6 kat daha hızlı).
+- **Soğuk Başlangıç Gecikmesi:** `~56 ms — 68 ms` (Resmi Python MCP SDK'sına göre ~6 kat daha hızlı).
 - **Bellek Tüketimi:** `~9 — 12 MB RAM` (Ekstra runtime veya sanal ortam yükü yoktur).
 - **Harici Bağımlılık:** `0` (Yalnızca Python standart kütüphanesi: `socket`, `fcntl`, `struct`, `urllib`).
 - **Arayüz Etki Alanı:** `~400 px` genişlik, `24 px` yükseklik (Başlık çubuğu kontrollerini sıkıştırmaz).
