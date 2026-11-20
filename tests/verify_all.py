@@ -21,6 +21,8 @@ import argparse
 import json
 import os
 import shutil
+import socket
+import struct
 import subprocess
 import tempfile
 import time
@@ -277,10 +279,73 @@ def main() -> int:
         assert len(reset_alerts) == 1, "Kota sıfırlandığında yenilenme bildirimi üretilmeliydi!"
         print("[PASS] Notifier bildirim mantığı, anti-spam cooldown ve lider koruması doğrulandı!")
 
+        print("\n" + "=" * 68)
+        print("8. RFC-6455 WEBSOCKET PARÇALI ÇERÇEVE (FRAGMENTATION) & PING/PONG TESTİ")
+        print("=" * 68)
+
+        from src.cdp_client import _recv_ws_text_frame
+
+        def _send_server_frame(sock: socket.socket, fin: bool, opcode: int, payload: bytes) -> None:
+            first_byte = (0x80 if fin else 0x00) | (opcode & 0x0F)
+            length = len(payload)
+            header = bytearray([first_byte])
+            if length <= 125:
+                header.append(length)
+            elif length <= 65535:
+                header.append(126)
+                header.extend(struct.pack("!H", length))
+            else:
+                header.append(127)
+                header.extend(struct.pack("!Q", length))
+            sock.sendall(bytes(header) + payload)
+
+        def _read_exact(sock: socket.socket, n: int) -> bytes:
+            buf = bytearray()
+            while len(buf) < n:
+                chunk = sock.recv(n - len(buf))
+                assert chunk, "İstemci Pong çerçevesi beklenenden erken kesildi!"
+                buf.extend(chunk)
+            return bytes(buf)
+
+        server_sock, client_sock = socket.socketpair()
+        try:
+            client_sock.settimeout(2.0)
+            server_sock.settimeout(2.0)
+
+            _send_server_frame(server_sock, fin=False, opcode=0x01, payload=b'{"id": 1, "res')
+            _send_server_frame(server_sock, fin=True, opcode=0x09, payload=b"ping-123")
+            _send_server_frame(server_sock, fin=True, opcode=0x00, payload=b'ult": "ok"}')
+
+            got = _recv_ws_text_frame(client_sock)
+            assert got == '{"id": 1, "result": "ok"}', f"Beklenen birleşik metin alınamadı: {got!r}"
+
+            pong_head = _read_exact(server_sock, 2)
+            pong_fin = bool(pong_head[0] & 0x80)
+            pong_opcode = pong_head[0] & 0x0F
+            pong_masked = bool(pong_head[1] & 0x80)
+            pong_len = pong_head[1] & 0x7F
+            if pong_len == 126:
+                pong_len = struct.unpack("!H", _read_exact(server_sock, 2))[0]
+            elif pong_len == 127:
+                pong_len = struct.unpack("!Q", _read_exact(server_sock, 8))[0]
+
+            assert pong_fin is True, "Pong çerçevesinde FIN=1 olmalı!"
+            assert pong_opcode == 0x0A, f"Beklenen opcode 0x0A (Pong), gelen: {pong_opcode:#x}"
+            assert pong_masked is True, "İstemciden gönderilen Pong çerçevesi maskeli olmalı!"
+
+            mask_key = _read_exact(server_sock, 4)
+            masked_payload = _read_exact(server_sock, pong_len)
+            unmasked_payload = bytes(b ^ mask_key[i % 4] for i, b in enumerate(masked_payload))
+            assert unmasked_payload == b"ping-123", f"Beklenen Pong payload 'ping-123', gelen: {unmasked_payload!r}"
+            print("[PASS] Parçalı WebSocket çerçeveleri birleştirildi ve araya giren Ping'e maskeli Pong ile yanıt verildi!")
+        finally:
+            server_sock.close()
+            client_sock.close()
+
         proc2.terminate()
         proc2.wait(timeout=3)
 
-        print("\n[SUCCESS] Tüm testler (Soğuk başlangıç, Çoklu Örnek Kilit, Failover, Kota, CDP UI, Scratch Temizliği ve Masaüstü Bildirimleri) başarıyla geçti!")
+        print("\n[SUCCESS] Tüm testler (Soğuk başlangıç, Çoklu Örnek Kilit, Failover, Kota, CDP UI, Scratch Temizliği, Masaüstü Bildirimleri ve WebSocket Fragmentation/Pong) başarıyla geçti!")
         return 0
     finally:
         try:

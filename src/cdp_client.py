@@ -21,14 +21,13 @@ from urllib.parse import urlparse
 import config
 
 
-def _send_ws_text_frame(sock: socket.socket, text: str) -> None:
-    """RFC-6455 istemci maskeli metin çerçevesi (masked text frame) gönderir."""
-    payload = text.encode("utf-8")
+def _send_ws_frame(sock: socket.socket, opcode: int, payload: bytes = b"") -> None:
+    """RFC-6455 istemci maskeli WebSocket çerçevesi (FIN=1) gönderir."""
     length = len(payload)
     mask_key = os.urandom(4)
 
     header = bytearray()
-    header.append(0x81)  # FIN=1, Opcode=1 (Text)
+    header.append(0x80 | (opcode & 0x0F))
 
     if length <= 125:
         header.append(0x80 | length)
@@ -44,6 +43,16 @@ def _send_ws_text_frame(sock: socket.socket, text: str) -> None:
     sock.sendall(header + masked_payload)
 
 
+def _send_ws_text_frame(sock: socket.socket, text: str) -> None:
+    """RFC-6455 istemci maskeli metin çerçevesi (masked text frame) gönderir."""
+    _send_ws_frame(sock, 0x01, text.encode("utf-8"))
+
+
+def _send_ws_control_frame(sock: socket.socket, opcode: int, payload: bytes = b"") -> None:
+    """RFC-6455 istemci maskeli kontrol çerçevesi (ör. Pong) gönderir."""
+    _send_ws_frame(sock, opcode, payload)
+
+
 def _recv_exact(sock: socket.socket, n: int) -> bytes:
     """Soketten tam olarak `n` bayt okur."""
     buf = bytearray()
@@ -56,9 +65,13 @@ def _recv_exact(sock: socket.socket, n: int) -> bytes:
 
 
 def _recv_ws_text_frame(sock: socket.socket) -> str:
-    """Sunucudan gelen metin çerçevesini okur (ping/pong çerçevelerini atlar)."""
+    """Sunucudan gelen (parçalı olabilen) metin çerçevesini okur ve Ping'lere Pong ile yanıt verir."""
+    fragments = bytearray()
+    in_text_message = False
+
     while True:
         first_two = _recv_exact(sock, 2)
+        fin = bool(first_two[0] & 0x80)
         opcode = first_two[0] & 0x0F
         is_masked = bool(first_two[1] & 0x80)
         length = first_two[1] & 0x7F
@@ -77,9 +90,23 @@ def _recv_ws_text_frame(sock: socket.socket) -> str:
         if opcode == 0x08:  # Connection Close
             raise ConnectionError("CDP WebSocket sunucusu bağlantıyı kapattı.")
         if opcode == 0x09:  # Ping -> Pong gönder
+            _send_ws_control_frame(sock, 0x0A, payload)
             continue
-        if opcode == 0x01:  # Text frame
-            return payload.decode("utf-8", errors="ignore")
+        if opcode == 0x0A:  # Pong
+            continue
+        if opcode == 0x01:  # Text frame (tekil veya parçalı mesajın başlangıcı)
+            fragments = bytearray(payload)
+            in_text_message = True
+            if fin:
+                return fragments.decode("utf-8", errors="ignore")
+            continue
+        if opcode == 0x00:  # Continuation frame
+            if not in_text_message:
+                continue
+            fragments.extend(payload)
+            if fin:
+                return fragments.decode("utf-8", errors="ignore")
+            continue
 
 
 def cdp_evaluate(
