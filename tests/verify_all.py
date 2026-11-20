@@ -57,6 +57,273 @@ def call_tool(proc: subprocess.Popen[str], req_id: int, name: str, args: dict[st
     return json.loads(text)
 
 
+def _run_ui_payload_js_checks(js_payload: str) -> None:
+    """Node.js mevcutsa üretilen UI JS yükünün sözdizimini ve davranışlarını doğrular."""
+    node_bin = shutil.which("node")
+    if not node_bin:
+        print("[SKIP/INFO] Node.js bulunamadı; headless JS davranış testi atlandı.")
+        return
+
+    import config
+
+    syntax_proc = subprocess.run(
+        [node_bin, "--check"],
+        input=js_payload,
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    assert syntax_proc.returncode == 0, f"UI JS sözdizimi hatası: {syntax_proc.stderr}"
+
+    harness = f"""
+const assert = require("node:assert/strict");
+const vm = require("node:vm");
+
+const BADGE_ID = {json.dumps(config.BADGE_ELEMENT_ID)};
+const BAR_SELECTOR = {json.dumps(config.TARGET_BAR_SELECTOR)};
+const JS_CODE = {json.dumps(js_payload)};
+
+async function main() {{
+    let fakeNow = 100000;
+    const RealDate = Date;
+    class FakeDate extends RealDate {{
+        constructor(...args) {{
+            if (args.length === 0) super(fakeNow);
+            else super(...args);
+        }}
+        static now() {{ return fakeNow; }}
+    }}
+
+    let disconnectedCount = 0;
+    const clearedIntervals = [];
+    const cancelledFrames = [];
+    let nextTimerId = 100;
+    let nextRafId = 500;
+    let intervalCallbacks = [];
+    let rafCallbacks = new Map();
+    let observerCallback = null;
+
+    let modelBtnAria = "Select model, current: Orchestrator (Neon) (high)";
+    let modelBtnText = "Orchestrator (Neon)";
+    let extraButtons = [];
+    let hasModelTriggerBtn = true;
+
+    let styleEl = null;
+    let badgeEl = null;
+    const barEl = {{
+        appendChild(el) {{
+            if (el.id === BADGE_ID) badgeEl = el;
+        }}
+    }};
+
+    let currentQuotaResp = {{
+        groups: [
+            {{
+                displayName: "Gemini Models",
+                description: "Models within this group: Gemini 4 Neon, Gemini 4 Hydrogen, Orchestrator (Neon), Gemini 3.8 Flash",
+                buckets: [
+                    {{ window: "weekly", remainingFraction: 0.74, resetTime: "2026-11-28T00:00:00Z" }},
+                    {{ window: "5h", remainingFraction: 0.50, resetTime: "2026-11-21T05:00:00Z" }}
+                ]
+            }},
+            {{
+                displayName: "Claude and GPT models",
+                description: "Models within this group: Claude Opus 5.5, Claude Sonnet 5.5, GPT-OSS 120B, FutureModel Alpha",
+                buckets: [
+                    {{ window: "weekly", remainingFraction: 0.80, resetTime: "2026-11-28T00:00:00Z" }},
+                    {{ window: "5h", remainingFraction: 0.90, resetTime: "2026-11-21T05:00:00Z" }}
+                ]
+            }},
+            {{
+                displayName: "Gemini 4 Argon",
+                description: "For paid Pro plans, Argon quota is separate. Higher Argon quota (included as part of the larger Gemini quota bucket) is available on Ultra plans.",
+                buckets: [
+                    {{ window: "weekly", remainingFraction: 0.95, resetTime: "2026-11-28T00:00:00Z" }}
+                ]
+            }}
+        ]
+    }};
+
+    const mockWindow = {{
+        __APP_CONFIG__: {{ csrfToken: "test-csrf" }},
+        __AGY_QUOTA_STATE__: {{
+            fetchTimerId: 91,
+            renderTimerId: 92,
+            observer: {{ disconnect() {{ disconnectedCount++; }} }},
+            history: [{{ t: 1000, g5h: 42, c5h: 88 }}]
+        }}
+    }};
+
+    const mockDocument = {{
+        head: {{ appendChild(el) {{ if (el.id) styleEl = el; }} }},
+        body: {{}},
+        getElementById(id) {{
+            if (id === BADGE_ID) return badgeEl;
+            if (id === "agy-quota-pulse-style") return styleEl;
+            return null;
+        }},
+        createElement(tag) {{
+            return {{ tagName: tag.toUpperCase(), id: "", style: {{}}, textContent: "", innerHTML: "", title: "" }};
+        }},
+        querySelector(sel) {{
+            if (sel === BAR_SELECTOR) return barEl;
+            if (sel.includes("model-selector-trigger") && hasModelTriggerBtn) {{
+                return {{
+                    getAttribute(name) {{ return name === "aria-label" ? modelBtnAria : null; }},
+                    get innerText() {{ return modelBtnText; }}
+                }};
+            }}
+            return null;
+        }},
+        querySelectorAll(sel) {{
+            if (sel === "button") return extraButtons;
+            return [];
+        }}
+    }};
+
+    const sandbox = {{
+        window: mockWindow,
+        document: mockDocument,
+        Date: FakeDate,
+        console,
+        MutationObserver: class {{
+            constructor(cb) {{ observerCallback = cb; }}
+            observe() {{}}
+            disconnect() {{ disconnectedCount++; }}
+        }},
+        requestAnimationFrame(cb) {{
+            const id = ++nextRafId;
+            rafCallbacks.set(id, cb);
+            return id;
+        }},
+        cancelAnimationFrame(id) {{
+            cancelledFrames.push(id);
+            rafCallbacks.delete(id);
+        }},
+        setInterval(fn, ms) {{
+            const id = ++nextTimerId;
+            intervalCallbacks.push({{ id, fn, ms }});
+            return id;
+        }},
+        clearInterval(id) {{ clearedIntervals.push(id); }},
+        setTimeout() {{ return 999; }},
+        fetch: async () => ({{ ok: true, json: async () => ({{ response: currentQuotaResp }}) }}),
+        Array, String, Math, Boolean, JSON, Promise, Number, Object, Error
+    }};
+
+    const flush = async () => {{
+        for (let i = 0; i < 6; i++) await new Promise(r => setImmediate(r));
+    }};
+
+    // 1. Eski durumdan güvenli geçiş (legacy history dizisi + undefined reattachFrameId)
+    const res1 = vm.runInNewContext(JS_CODE, sandbox);
+    assert.equal(res1, "OK");
+    assert.equal(disconnectedCount, 1);
+    assert.ok(clearedIntervals.includes(91) && clearedIntervals.includes(92));
+    assert.equal(cancelledFrames.length, 0, "undefined reattachFrameId için cancelAnimationFrame çağrılmamalı");
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.reattachFrameId, null);
+    assert.ok(Array.isArray(mockWindow.__AGY_QUOTA_STATE__.history.g5h));
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h[0].pct, 42);
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.c5h[0].pct, 88);
+
+    await flush();
+    assert.ok(badgeEl !== null, "Rozet DOM'a eklenmeli");
+    assert.ok(badgeEl.title.includes("Aktif Model Grubu: gemini"), badgeEl.title);
+
+    // 2. Dinamik model açıklaması ve effort token temizleme kontrolleri
+    const fetchCycle = intervalCallbacks[0].fn;
+    const renderCycle = intervalCallbacks[1].fn;
+
+    modelBtnAria = "Select model, current: FutureModel Alpha (medium)";
+    renderCycle();
+    assert.ok(badgeEl.title.includes("Aktif Model Grubu: claude"), badgeEl.title);
+
+    modelBtnAria = "Select model, current: Gemini 4 Argon (low)";
+    renderCycle();
+    assert.ok(badgeEl.title.includes("Aktif Model Grubu: argon"), badgeEl.title);
+
+    modelBtnAria = "Select model, current: Gemini 3 Pro minimal";
+    renderCycle();
+    assert.ok(badgeEl.title.includes("Aktif Model Grubu: gemini"), badgeEl.title);
+
+    hasModelTriggerBtn = false;
+    extraButtons = [{{ innerText: "FutureModel Alpha (high)" }}];
+    renderCycle();
+    assert.ok(badgeEl.title.includes("Aktif Model Grubu: claude"), badgeEl.title);
+    hasModelTriggerBtn = true;
+
+    // 3. Kova bazlı (per-bucket) erime hızı sıfırlama testi
+    // g5h: 42 -> 50 (+8 > +5) sıfırlanır -> [50]; c5h: 88 -> 90 (+2 <= +5) korunur -> [88, 90]
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h.length, 1);
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h[0].pct, 50);
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.c5h.length, 2);
+
+    fakeNow += 60000;
+    currentQuotaResp.groups[0].buckets[1].remainingFraction = 0.40;
+    currentQuotaResp.groups[1].buckets[1].remainingFraction = 0.80;
+    await fetchCycle();
+    await flush();
+    assert.ok(badgeEl.title.includes("Gemini (5h) Tüketim: 🔥"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Claude/GPT (5h) Tüketim: 🔥"), badgeEl.title);
+
+    // Gemini 5h sıfırlanır (40 -> 100), Claude 5h erimeye devam eder (80 -> 75)
+    fakeNow += 60000;
+    currentQuotaResp.groups[0].buckets[1].remainingFraction = 1.0;
+    currentQuotaResp.groups[1].buckets[1].remainingFraction = 0.75;
+    await fetchCycle();
+    await flush();
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h.length, 1);
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h[0].pct, 100);
+    assert.ok(!badgeEl.title.includes("Gemini (5h) Tüketim:"), badgeEl.title);
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.c5h.length, 4);
+    assert.ok(badgeEl.title.includes("Claude/GPT (5h) Tüketim: 🔥"), badgeEl.title);
+
+    // Gemini 5h yeni döngüde erir (100 -> 95), Claude küçük dalgalanma (+3 <= +5) yaşar (75 -> 78)
+    fakeNow += 60000;
+    currentQuotaResp.groups[0].buckets[1].remainingFraction = 0.95;
+    currentQuotaResp.groups[1].buckets[1].remainingFraction = 0.78;
+    await fetchCycle();
+    await flush();
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h.length, 2);
+    assert.ok(badgeEl.title.includes("Gemini (5h) Tüketim: 🔥"), badgeEl.title);
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.c5h.length, 5);
+
+    // 4. Debounced MutationObserver ve yeniden enjeksiyonda cancelAnimationFrame
+    badgeEl = null;
+    for (let i = 0; i < 5; i++) observerCallback();
+    assert.equal(rafCallbacks.size, 1, "5 DOM mutasyonu tek requestAnimationFrame planlamalı");
+    const pendingRafId = mockWindow.__AGY_QUOTA_STATE__.reattachFrameId;
+    assert.ok(pendingRafId !== null);
+    rafCallbacks.get(pendingRafId)();
+    assert.equal(mockWindow.__AGY_QUOTA_STATE__.reattachFrameId, null);
+    assert.ok(badgeEl !== null, "rAF sonrası rozet geri eklenmeli");
+
+    badgeEl = null;
+    observerCallback();
+    const cancelTargetId = mockWindow.__AGY_QUOTA_STATE__.reattachFrameId;
+    assert.ok(cancelTargetId !== null);
+    const res2 = vm.runInNewContext(JS_CODE, sandbox);
+    assert.equal(res2, "OK");
+    assert.ok(cancelledFrames.includes(cancelTargetId), "Bekleyen reattachFrameId iptal edilmeli");
+    assert.equal(disconnectedCount, 2);
+    await flush();
+}}
+
+main().catch((err) => {{
+    console.error(err);
+    process.exit(1);
+}});
+"""
+    run_proc = subprocess.run(
+        [node_bin, "-e", harness],
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    assert run_proc.returncode == 0, f"Headless JS davranış testi başarısız:\n{run_proc.stderr}\n{run_proc.stdout}"
+    print("[PASS] Headless Node.js testi: dinamik model eşleme, kova bazlı burn-rate sıfırlama ve rAF debounced MutationObserver doğrulandı!")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Antigravity Quota MCP Doğrulama Testleri")
     parser.add_argument(
@@ -168,9 +435,26 @@ def main() -> int:
         from src.ui_payload import build_injection_js
 
         js_payload = build_injection_js()
-        for token in ("model-selector-trigger", "orchestrator", "neon", "hydrogen", "fetchSeq", "lastAppliedSeq"):
+        for token in (
+            "model-selector-trigger",
+            "orchestrator",
+            "neon",
+            "hydrogen",
+            "fetchSeq",
+            "lastAppliedSeq",
+            "detectActiveModelGroup(quota)",
+            "g.description",
+            "reattachFrameId",
+            "requestAnimationFrame",
+            "cancelAnimationFrame",
+            "history.g5h",
+            "history.c5h",
+            "+ 5",
+        ):
             assert token in js_payload, f"UI JS payload içinde '{token}' bulunamadı!"
-        print("[PASS] UI JS payload yeni model tespiti (Neon/Hydrogen/Orchestrator) ve fetchSeq koruması içeriyor!")
+        print("[PASS] UI JS payload dinamik model tespiti, rAF debouncing, per-bucket burn-rate ve fetchSeq koruması içeriyor!")
+
+        _run_ui_payload_js_checks(js_payload)
 
         inj = call_tool(proc2, 5, "reinject_badge", {"force": True})
         print(f"• Enjeksiyon Sonucu: {json.dumps(inj, ensure_ascii=False)}")

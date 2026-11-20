@@ -50,7 +50,29 @@ def build_injection_js() -> str:
     const COLOR_LOW = "{config.COLOR_LOW}";
 
     // Önceki bir örnek varsa zamanlayıcılarını ve gözlemcisini temizle (Idempotency)
-    const prevHistory = window.__AGY_QUOTA_STATE__?.history || [];
+    const prevHistory = window.__AGY_QUOTA_STATE__?.history;
+    const history = {{ g5h: [], c5h: [] }};
+    if (Array.isArray(prevHistory)) {{
+        history.g5h = prevHistory
+            .filter(e => e && typeof e.t === "number" && typeof e.g5h === "number")
+            .map(e => ({{ t: e.t, pct: e.g5h }}))
+            .slice(-30);
+        history.c5h = prevHistory
+            .filter(e => e && typeof e.t === "number" && typeof e.c5h === "number")
+            .map(e => ({{ t: e.t, pct: e.c5h }}))
+            .slice(-30);
+    }} else if (prevHistory && typeof prevHistory === "object") {{
+        if (Array.isArray(prevHistory.g5h)) {{
+            history.g5h = prevHistory.g5h
+                .filter(e => e && typeof e.t === "number" && typeof e.pct === "number")
+                .slice(-30);
+        }}
+        if (Array.isArray(prevHistory.c5h)) {{
+            history.c5h = prevHistory.c5h
+                .filter(e => e && typeof e.t === "number" && typeof e.pct === "number")
+                .slice(-30);
+        }}
+    }}
     const prevInstalledAt = window.__AGY_QUOTA_STATE__?.installedAt || Date.now();
     if (window.__AGY_QUOTA_STATE__) {{
         if (window.__AGY_QUOTA_STATE__.fetchTimerId) {{
@@ -58,6 +80,9 @@ def build_injection_js() -> str:
         }}
         if (window.__AGY_QUOTA_STATE__.renderTimerId) {{
             clearInterval(window.__AGY_QUOTA_STATE__.renderTimerId);
+        }}
+        if (window.__AGY_QUOTA_STATE__.reattachFrameId !== null && window.__AGY_QUOTA_STATE__.reattachFrameId !== undefined) {{
+            cancelAnimationFrame(window.__AGY_QUOTA_STATE__.reattachFrameId);
         }}
         if (window.__AGY_QUOTA_STATE__.observer) {{
             window.__AGY_QUOTA_STATE__.observer.disconnect();
@@ -71,10 +96,11 @@ def build_injection_js() -> str:
         lastAppliedSeq: 0,
         fetchTimerId: null,
         renderTimerId: null,
+        reattachFrameId: null,
         observer: null,
         lastQuota: null,
         installedAt: prevInstalledAt,
-        history: prevHistory
+        history: history
     }};
     window.__AGY_QUOTA_STATE__ = state;
 
@@ -104,13 +130,14 @@ def build_injection_js() -> str:
     }}
 
     function calculateBurnRate(key, currentPct) {{
-        if (!state.history || state.history.length < 2) return null;
-        const oldest = state.history[0];
-        const newest = state.history[state.history.length - 1];
+        const arr = state.history?.[key];
+        if (!arr || arr.length < 2) return null;
+        const oldest = arr[0];
+        const newest = arr[arr.length - 1];
         const timeDiffMin = (newest.t - oldest.t) / 60000;
         if (timeDiffMin < 0.3) return null;
 
-        const drop = oldest[key] - currentPct;
+        const drop = oldest.pct - currentPct;
         if (drop <= 0) {{
             return {{ ratePerHour: 0, etaMinutes: null, text: "Stabil (Erime hızı stabil)" }};
         }}
@@ -158,14 +185,68 @@ def build_injection_js() -> str:
         }}
     }}
 
-    function detectActiveModelGroup() {{
+    function mapGroupDisplayName(displayName) {{
+        const gLower = String(displayName || '').toLowerCase();
+        if (gLower.includes('argon')) return 'argon';
+        if (gLower.includes('claude') || gLower.includes('gpt')) return 'claude';
+        if (gLower.includes('gemini')) return 'gemini';
+        return '';
+    }}
+
+    function normalizeModelLabel(rawLabel) {{
+        let normalized = String(rawLabel || '')
+            .replace(/\\s+/g, ' ')
+            .trim()
+            .replace(/^select model,\\s*current:\\s*/i, '')
+            .trim();
+        const effortRe = /(?:\\s*\\((?:low|medium|high|minimal)\\)|\\s+(?:low|medium|high|minimal))\\s*$/i;
+        while (effortRe.test(normalized)) {{
+            normalized = normalized.replace(effortRe, '').trim();
+        }}
+        return normalized.replace(/^(?:low|medium|high|minimal)$/i, '').trim().toLowerCase();
+    }}
+
+    function detectActiveModelGroup(quota) {{
         try {{
+            const descCandidates = [];
+            const nameCandidates = [];
+            for (const g of quota?.groups || []) {{
+                const groupKey = mapGroupDisplayName(g.displayName);
+                if (!groupKey) continue;
+                const gNameNorm = String(g.displayName || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+                if (gNameNorm && gNameNorm.length <= 50) {{
+                    nameCandidates.push({{ text: gNameNorm, group: groupKey }});
+                }}
+                const desc = String(g.description || '').trim();
+                if (desc.includes(':')) {{
+                    const listPart = desc.slice(desc.indexOf(':') + 1);
+                    for (const chunk of listPart.split(',')) {{
+                        const entry = chunk.replace(/\\s+/g, ' ').trim().toLowerCase();
+                        if (entry && entry.length <= 50) {{
+                            descCandidates.push({{ text: entry, group: groupKey }});
+                        }}
+                    }}
+                }}
+            }}
+            descCandidates.sort((a, b) => b.text.length - a.text.length);
+            nameCandidates.sort((a, b) => b.text.length - a.text.length);
+
             const btn = document.querySelector(
                 'button[data-testid="model-selector-trigger"], button[aria-label*="Select model, current:"]'
             );
             let label = btn ? (btn.getAttribute('aria-label') || btn.innerText || '') : '';
+            if (btn && !normalizeModelLabel(label) && btn.innerText) {{
+                label = btn.innerText;
+            }}
             if (!label) {{
-                const anyBtn = Array.from(document.querySelectorAll('button')).find(b => {{
+                const buttons = Array.from(document.querySelectorAll('button'));
+                const dynBtn = descCandidates.length > 0
+                    ? buttons.find(b => {{
+                        const t = (b.innerText || '').toLowerCase();
+                        return descCandidates.some(c => t.includes(c.text));
+                    }})
+                    : null;
+                const anyBtn = dynBtn || buttons.find(b => {{
                     const t = (b.innerText || '').toLowerCase();
                     return (
                         t.includes('neon') ||
@@ -180,9 +261,30 @@ def build_injection_js() -> str:
                         t.includes('opus')
                     );
                 }});
-                if (anyBtn) label = anyBtn.innerText;
+                if (anyBtn) label = anyBtn.innerText || '';
             }}
-            const lower = label.toLowerCase();
+
+            const lower = normalizeModelLabel(label);
+            if (!lower) return '';
+
+            for (const c of descCandidates) {{
+                if (lower === c.text) return c.group;
+            }}
+            for (const c of nameCandidates) {{
+                if (lower === c.text) return c.group;
+            }}
+
+            const allCandidates = descCandidates.concat(nameCandidates).sort((a, b) => b.text.length - a.text.length);
+            for (const c of allCandidates) {{
+                if (lower.includes(c.text)) return c.group;
+            }}
+
+            if (lower.length >= 3) {{
+                for (const c of descCandidates) {{
+                    if (c.text.includes(lower)) return c.group;
+                }}
+            }}
+
             if (lower.includes('argon')) return 'argon';
             if (lower.includes('claude') || lower.includes('gpt') || lower.includes('sonnet') || lower.includes('opus')) return 'claude';
             if (lower.includes('flash') || lower.includes('gemini') || lower.includes('pro') || lower.includes('neon') || lower.includes('hydrogen') || lower.includes('orchestrator')) return 'gemini';
@@ -194,20 +296,38 @@ def build_injection_js() -> str:
         if (!data || seq < state.lastAppliedSeq) return false;
         state.lastAppliedSeq = seq;
         state.lastQuota = data;
-        let curG5h = 100;
-        let curC5h = 100;
+        let curG5h = null;
+        let curC5h = null;
+        let hasG5h = false;
+        let hasC5h = false;
         for (const g of data.groups || []) {{
+            const gKey = mapGroupDisplayName(g.displayName);
             for (const b of g.buckets || []) {{
                 if (b.window === "5h") {{
                     const pct = Math.round((b.remainingFraction ?? 1) * 100);
-                    const gName = g.displayName || "";
-                    if (gName.includes("Gemini") && !gName.includes("Argon")) curG5h = pct;
-                    if (gName.includes("Claude") || gName.includes("GPT")) curC5h = pct;
+                    if (gKey === "gemini") {{
+                        curG5h = pct;
+                        hasG5h = true;
+                    }} else if (gKey === "claude") {{
+                        curC5h = pct;
+                        hasC5h = true;
+                    }}
                 }}
             }}
         }}
-        state.history.push({{ t: Date.now(), g5h: curG5h, c5h: curC5h }});
-        if (state.history.length > 30) state.history.shift();
+        const now = Date.now();
+        function recordHistory(key, pct) {{
+            const arr = state.history[key] || (state.history[key] = []);
+            const prev = arr.length > 0 ? arr[arr.length - 1] : null;
+            if (prev && pct > prev.pct + 5) {{
+                state.history[key] = [{{ t: now, pct }}];
+            }} else {{
+                arr.push({{ t: now, pct }});
+                if (arr.length > 30) arr.shift();
+            }}
+        }}
+        if (hasG5h) recordHistory("g5h", curG5h);
+        if (hasC5h) recordHistory("c5h", curC5h);
         return true;
     }}
 
@@ -327,11 +447,12 @@ def build_injection_js() -> str:
 
         for (const g of quota.groups || []) {{
             const gName = g.displayName || "";
+            const gKey = mapGroupDisplayName(gName);
             for (const b of g.buckets || []) {{
                 const pct = Math.round((b.remainingFraction ?? 1) * 100);
                 if (pct < minPct) minPct = pct;
 
-                if (gName.includes("Gemini") && !gName.includes("Argon")) {{
+                if (gKey === "gemini") {{
                     if (b.window === "weekly") {{
                         geminiWeekly = pct;
                         geminiWeeklyReset = b.resetTime || "";
@@ -342,13 +463,13 @@ def build_injection_js() -> str:
                         gemini5hReset = b.resetTime || "";
                         hasGemini5h = true;
                     }}
-                }} else if (gName.includes("Argon")) {{
+                }} else if (gKey === "argon") {{
                     if (b.window === "weekly") {{
                         argonWeekly = pct;
                         argonWeeklyReset = b.resetTime || "";
                         hasArgon = true;
                     }}
-                }} else if (gName.includes("Claude") || gName.includes("GPT")) {{
+                }} else if (gKey === "claude") {{
                     if (b.window === "weekly") {{
                         claudeWeekly = pct;
                         claudeWeeklyReset = b.resetTime || "";
@@ -385,7 +506,7 @@ def build_injection_js() -> str:
         const c5hTime = formatTimeRemaining(claude5hReset, "5h");
 
         // Aktif model grubu tespiti ve görsel stil ayrımı
-        const activeGroup = detectActiveModelGroup();
+        const activeGroup = detectActiveModelGroup(quota);
         tooltipLines.push(`\\nAktif Model Grubu: ${{activeGroup || "Bilinmiyor"}}`);
 
         const gBurn = hasGemini5h ? calculateBurnRate("g5h", gemini5h) : null;
@@ -468,11 +589,15 @@ def build_injection_js() -> str:
         renderBadge(state.lastQuota);
     }}
 
-    // React DOM değişimlerinde rozet silinirse veya model değişirse anında güncelle
+    // React DOM değişimlerinde rozet silinirse bir sonraki çizim karesinde yeniden ekle
     const observer = new MutationObserver(() => {{
-        if (!document.getElementById(BADGE_ID) && document.querySelector(BAR_SELECTOR)) {{
-            renderBadge(state.lastQuota);
-        }}
+        if (state.reattachFrameId !== null) return;
+        state.reattachFrameId = requestAnimationFrame(() => {{
+            state.reattachFrameId = null;
+            if (!document.getElementById(BADGE_ID) && document.querySelector(BAR_SELECTOR)) {{
+                renderBadge(state.lastQuota);
+            }}
+        }});
     }});
     observer.observe(document.body, {{ childList: true, subtree: true }});
     state.observer = observer;
