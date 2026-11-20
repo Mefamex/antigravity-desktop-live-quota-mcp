@@ -1,14 +1,14 @@
 """
-Masaüstü Bildirim Yöneticisi (src/notifier.py)
+Desktop Notification Manager (src/notifier.py)
 
-Linux masaüstü bildirimlerini (`notify-send`) sıfır harici Python bağımlılığıyla
-yönetir.
+Manages Linux desktop notifications (`notify-send`) with zero external Python
+dependencies.
 
-Özellikler:
-1. Kritik Eşik Uyarısı: Kota belirlenen eşiğin (%15) altına düştüğünde uyarı gönderir.
-2. Kota Yenilenme Müjdesi: 5 saatlik veya haftalık sayaç sıfırlanıp kota tazelendiğinde bildirim verir.
-3. Cooldown & Anti-Spam: Sürekli aynı bildirimle kullanıcıyı rahatsız etmez (30 dk cooldown).
-4. Tekil Lider Koruması: Yalnızca `LEADER` olan süreç bildirim gönderir.
+Features:
+1. Critical Threshold Alert: Sends an alert when quota drops below the configured threshold (15%).
+2. Quota Refresh Notification: Notifies when the 5-hour or weekly counter resets and quota is restored.
+3. Cooldown & Anti-Spam: Avoids repeatedly disturbing the user with identical alerts (30-min cooldown).
+4. Single-Leader Guard: Only the `LEADER` process sends notifications.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ log = get_logger("notifier")
 
 
 def is_notify_send_available() -> bool:
-    """Sistemde `notify-send` ikili dosyasının bulunup bulunmadığını kontrol eder."""
+    """Checks whether the `notify-send` binary is available on the system."""
     return shutil.which("notify-send") is not None
 
 
@@ -38,17 +38,17 @@ def send_desktop_notification(
     timeout_ms: int = 5000,
 ) -> bool:
     """
-    Sistemdeki `notify-send` üzerinden yerel masaüstü bildirimi gönderir.
+    Sends a local desktop notification via the system's `notify-send` command.
 
-    :param title: Bildirim başlığı.
-    :param message: Bildirim metni.
-    :param urgency: 'low', 'normal' veya 'critical'.
-    :param icon: Bildirim ikonu adı veya yolu.
-    :param timeout_ms: Bildirimin ekranda kalma süresi (ms).
-    :return: Bildirim başarıyla tetiklendiyse True, aksi halde False.
+    :param title: Notification title.
+    :param message: Notification body text.
+    :param urgency: 'low', 'normal', or 'critical'.
+    :param icon: Notification icon name or path.
+    :param timeout_ms: Display duration on screen (ms).
+    :return: True if the notification was triggered successfully, False otherwise.
     """
     if not is_notify_send_available():
-        log.debug("`notify-send` bulunamadığı için bildirim atlandı.")
+        log.debug("`notify-send` not found; skipping notification.")
         return False
 
     cmd = [
@@ -68,20 +68,20 @@ def send_desktop_notification(
     try:
         res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=3)
         if res.returncode == 0:
-            log.info(f"Masaüstü bildirimi gönderildi -> {title}")
+            log.info(f"Desktop notification sent -> {title}")
             return True
         else:
-            log.warning(f"notify-send hata döndürdü: {res.stderr.strip()}")
+            log.warning(f"notify-send returned an error: {res.stderr.strip()}")
             return False
     except Exception as exc:
-        log.warning(f"Masaüstü bildirimi gönderilemedi: {exc}")
+        log.warning(f"Failed to send desktop notification: {exc}")
         return False
 
 
 class QuotaNotifier:
     """
-    Kota durumunu izleyerek kritik düşüşlerde ve yenilenmelerde
-    kontrollü masaüstü bildirimi üreten durum takipçisi.
+    State tracker that monitors quota status and emits controlled desktop
+    notifications on critical drops and quota refreshes.
     """
 
     def __init__(self) -> None:
@@ -90,8 +90,8 @@ class QuotaNotifier:
 
     def check_and_notify(self, report: QuotaReport, is_leader: bool = True) -> list[str]:
         """
-        Gelen kota raporunu analiz eder ve gerekliyse masaüstü bildirimi gönderir.
-        Yalnızca `is_leader=True` ve `ENABLE_DESKTOP_NOTIFICATIONS=True` ise tetiklenir.
+        Analyzes the incoming quota report and sends desktop notifications if needed.
+        Triggers only when `is_leader=True` and `ENABLE_DESKTOP_NOTIFICATIONS=True`.
         """
         if not is_leader or not config.ENABLE_DESKTOP_NOTIFICATIONS:
             return []
@@ -113,27 +113,27 @@ class QuotaNotifier:
                 prev_pct = self.last_known_pcts.get(b_id)
                 self.last_known_pcts[b_id] = pct
 
-                # 1. Kota Yenilenme Kontrolü (Reset Notification)
+                # 1. Quota Refresh Check (Reset Notification)
                 if config.ENABLE_RESET_NOTIFICATION and prev_pct is not None:
-                    # Kota önceki ölçümde %50 veya altındaydı, şimdi %90 üzerine çıktıysa (yenilenmiş)
+                    # Quota was <= 50% in the previous check and is now >= 90% (refreshed)
                     if prev_pct <= 50 and pct >= 90:
-                        title = f"🔄 AI Kotası Yenilendi: {g_name} ({bucket.window})"
-                        msg = f"Kotanız tazelendi (%{pct})! Çalışmaya tam kapasite devam edebilirsiniz."
+                        title = f"🔄 AI Quota Refreshed: {g_name} ({bucket.window})"
+                        msg = f"Quota refreshed ({pct}%)! Full capacity restored."
                         if send_desktop_notification(title, msg, urgency="normal", icon="emblem-default"):
                             sent_alerts.append(title)
-                        # Alert cooldown'ını sıfırla ki tekrar düşerse uyarı alabilsin
+                        # Reset alert cooldown so future drops can still trigger an alert
                         self.last_alert_times.pop(b_id, None)
                         continue
 
-                # 2. Kritik Kota Düşüşü Uyarısı (Critical Threshold Notification)
+                # 2. Critical Quota Drop Alert (Critical Threshold Notification)
                 if pct <= threshold_pct:
                     last_alert = self.last_alert_times.get(b_id, 0.0)
                     if (now - last_alert) >= cooldown_sec:
-                        title = f"⚠️ Kritik AI Kota Uyarısı: {g_name} ({bucket.window})"
+                        title = f"⚠️ Critical AI Quota Alert: {g_name} ({bucket.window})"
                         msg = (
-                            f"Kalan Kota: %{pct}\n"
-                            f"{bucket.description or 'Kotanız tükenmek üzere!'}\n"
-                            f"Model değiştirmeyi veya kota yenilenmesini beklemeyi düşünebilirsiniz."
+                            f"Remaining Quota: {pct}%\n"
+                            f"{bucket.description or 'Your quota is running low!'}\n"
+                            f"Consider switching models or waiting for the quota reset."
                         )
                         if send_desktop_notification(title, msg, urgency="critical", icon="dialog-warning"):
                             sent_alerts.append(title)

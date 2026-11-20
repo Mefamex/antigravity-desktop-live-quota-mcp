@@ -1,9 +1,9 @@
 """
-ConnectRPC Kota İstemcisi Modülü (src/quota_client.py)
+ConnectRPC Quota Client Module (src/quota_client.py)
 
-Yerel `language_server` sürecine `RetrieveUserQuotaSummary` çağrısı yapar,
-gelen ham yanıtı (`raw_response`) korur ve model gruplarını (`QuotaReport`)
-ayrıştırır.
+Invokes `RetrieveUserQuotaSummary` on the local `language_server` process,
+preserves the raw response (`raw_response`), and parses model groups into
+a `QuotaReport`.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def _call_rpc_single(
     csrf_token: str,
     force_refresh: bool = False,
 ) -> dict[str, Any] | None:
-    """Belirtilen yerel porta tek bir HTTP veya HTTPS ConnectRPC isteği gönderir."""
+    """Sends a single HTTP or HTTPS ConnectRPC request to the specified local port."""
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
@@ -57,7 +57,7 @@ def _call_rpc_single(
 
 
 def _call_rpc_endpoint(port: int, csrf_token: str, force_refresh: bool = False) -> dict[str, Any] | None:
-    """Belirtilen yerel porta HTTP veya HTTPS üzerinden ConnectRPC isteği gönderir."""
+    """Sends a ConnectRPC request over HTTP or HTTPS to the specified local port."""
     for scheme in ("http", "https"):
         data = _call_rpc_single(port, scheme, csrf_token, force_refresh=force_refresh)
         if data is not None:
@@ -67,7 +67,7 @@ def _call_rpc_endpoint(port: int, csrf_token: str, force_refresh: bool = False) 
 
 
 def _parse_quota_response(raw_data: dict[str, Any]) -> QuotaReport:
-    """Ham RPC yanıtını ayrıştırarak QuotaReport nesnesine dönüştürür."""
+    """Parses the raw RPC response into a QuotaReport object."""
     resp_obj = raw_data.get("response", {})
     raw_groups = resp_obj.get("groups", [])
 
@@ -134,9 +134,9 @@ def _parse_quota_response(raw_data: dict[str, Any]) -> QuotaReport:
 
 def fetch_live_quota(force_refresh: bool = False) -> QuotaReport:
     """
-    Önbelleğe alınmış çalışan uç noktayı (varsa) kullanır; başarısız olursa
-    aktif language_server süreçlerini keşfeder ve ilk başarılı olanından
-    canlı kota raporunu döndürür.
+    Uses the cached working endpoint (if available); on failure, discovers active
+    language_server processes and returns a live quota report from the first one
+    that succeeds.
     """
     global _CACHED_ENDPOINT
 
@@ -161,7 +161,7 @@ def fetch_live_quota(force_refresh: bool = False) -> QuotaReport:
             claude_weekly_pct=0,
             claude_5h_pct=0,
             argon_weekly_pct=0,
-            error="Çalışan Antigravity language_server süreci bulunamadı.",
+            error="No running Antigravity language_server process found.",
         )
 
     for ep in endpoints:
@@ -182,5 +182,5 @@ def fetch_live_quota(force_refresh: bool = False) -> QuotaReport:
         claude_weekly_pct=0,
         claude_5h_pct=0,
         argon_weekly_pct=0,
-        error="language_server portlarından yanıt alınamadı.",
+        error="No response received from language_server ports.",
     )

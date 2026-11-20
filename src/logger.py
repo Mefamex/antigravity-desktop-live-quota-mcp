@@ -1,11 +1,11 @@
 """
-Standart MCP Uyumlu Loglama Modülü (src/logger.py)
+Standard MCP-Compliant Logging Module (src/logger.py)
 
-Altın Kural:
-MCP stdio sunucularında `stdout` yalnızca JSON-RPC 2.0 mesajlarını taşır.
-`stdout` üzerine tek bir karakter dahi basılması protokolü bozar.
-Bu modül tüm çıktıları kesin olarak `sys.stderr` akışına yönlendirir ve
-etiketleri 4 karaktere (`INFO`, `WARN`, `ERR `, `DBG `) hizalar.
+Golden Rule:
+In MCP stdio servers, `stdout` carries ONLY JSON-RPC 2.0 messages.
+Printing even a single extra character to `stdout` breaks the protocol.
+This module strictly directs all output to `sys.stderr` and aligns
+severity labels to 4 characters (`INFO`, `WARN`, `ERR `, `DBG `).
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import config
 
 
 class AlignedStderrFormatter(logging.Formatter):
-    """Log seviyelerini 4 karaktere sabitleyen biçimlendirici."""
+    """Formatter that aligns log levels to 4 characters."""
 
     LEVEL_MAP = {
         logging.DEBUG: "DBG ",
@@ -36,7 +36,7 @@ class AlignedStderrFormatter(logging.Formatter):
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Belirtilen modül adı için stderr tabanlı logger döndürür."""
+    """Returns a stderr-based logger for the specified module name."""
     logger = logging.getLogger(name)
     if not logger.handlers:
         handler = logging.StreamHandler(sys.stderr)

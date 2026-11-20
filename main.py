@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-antigravity-quota-mcp — Ana Giriş Noktası (main.py)
+antigravity-quota-mcp — Main Entry Point (main.py)
 
-Kullanım Modları:
-1. MCP Sunucu Modu (Varsayılan — `mcp_config.json` tarafından çağrılır):
+Usage Modes:
+1. MCP Server Mode (Default — invoked by `mcp_config.json`):
    $ python3 -B main.py
-   - Arka planda `LeaderLock` (`fcntl.flock`) korumalı UI Watcher başlatır.
-   - Ana iş parçacığında sıfır bağımlılıklı JSON-RPC 2.0 MCP Stdio sunucusunu çalıştırır.
+   - Starts a background UI Watcher guarded by `LeaderLock` (`fcntl.flock`).
+   - Runs a zero-dependency JSON-RPC 2.0 MCP Stdio server on the main thread.
 
-2. CLI Tanılama ve Manuel Kontrol Modları:
-   $ python3 -B main.py --status     # Canlı kotayı ve sunucu/kilit durumunu ekrana basar
-   $ python3 -B main.py --inject     # Tek seferlik UI rozet enjeksiyonu yapar ve çıkar
+2. CLI Diagnostics and Manual Control Modes:
+   $ python3 -B main.py --status     # Prints live quota and server/lock status
+   $ python3 -B main.py --inject     # Performs a one-shot UI badge injection and exits
 """
 
 from __future__ import annotations
 
 import sys
 
-# Sistem hijyeni: __pycache__ klasörlerinin oluşmasını engelle
+# System hygiene: prevent creation of __pycache__ directories
 sys.dont_write_bytecode = True
 
 import argparse
@@ -38,7 +38,7 @@ log = get_logger("main")
 
 
 def _run_cli_status() -> int:
-    """Terminalden `--status` ile çağrıldığında sistem ve kota özetini yazdırır."""
+    """Prints a system and quota summary when invoked from the terminal with `--status`."""
     endpoints = discover_language_servers()
     pages = discover_cdp_page_targets()
     report = fetch_live_quota()
@@ -63,70 +63,70 @@ def _run_cli_status() -> int:
 
 
 def _run_cli_inject() -> int:
-    """Terminalden `--inject` ile çağrıldığında rozeti pencereye enjekte eder."""
+    """Injects the badge into open windows when invoked from the terminal with `--inject`."""
     res = inject_into_all_windows(force=True)
     sys.stdout.write(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
     return 0 if res.get("ok") else 1
 
 
 def _run_cli_clean_scratch(dry_run: bool = False, hours: float = 0.0) -> int:
-    """Terminalden `--clean-scratch` ile çağrıldığında brain scratch dizinlerini temizler."""
+    """Cleans brain scratch directories when invoked from the terminal with `--clean-scratch`."""
     res = clean_scratch_cache(older_than_hours=hours, dry_run=dry_run)
     sys.stdout.write(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
     return 0 if res.get("ok") else 1
 
 
 def _run_cli_test_notify() -> int:
-    """Terminalden `--test-notify` ile çağrıldığında test masaüstü bildirimi gönderir."""
+    """Sends a test desktop notification when invoked from the terminal with `--test-notify`."""
     if not is_notify_send_available():
-        sys.stderr.write("[HATA] Sisteminizde `notify-send` bulunamadı (libnotify kurulu değil).\n")
+        sys.stderr.write("[ERROR] `notify-send` was not found on your system (libnotify is not installed).\n")
         return 1
 
     ok = send_desktop_notification(
-        title="⚡ Antigravity Canlı Kota Uyarısı (Test)",
-        message="Masaüstü bildirim sistemi başarıyla çalışıyor! Kritik kota eşiklerinde anında haberdar edileceksiniz.",
+        title="⚡ Antigravity Live Quota Alert (Test)",
+        message="Desktop notification system is working properly! You will be notified immediately at critical quota thresholds.",
         urgency="normal",
         icon="dialog-information",
     )
-    res = {"ok": ok, "message": "Test bildirimi gönderildi." if ok else "Bildirim gönderilemedi."}
+    res = {"ok": ok, "message": "Test notification sent." if ok else "Failed to send notification."}
     sys.stdout.write(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
     return 0 if ok else 1
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Antigravity Desktop Canlı Kota Göstergesi ve MCP Sunucusu"
+        description="Antigravity Desktop Live Quota Indicator and MCP Server"
     )
     parser.add_argument(
         "--status",
         action="store_true",
-        help="Canlı kota ve süreç/pencere durumunu JSON olarak gösterir ve çıkar.",
+        help="Show live quota and process/window status as JSON and exit.",
     )
     parser.add_argument(
         "--inject",
         action="store_true",
-        help="Açık Antigravity Desktop penceresine rozeti tek seferlik enjekte eder.",
+        help="Perform a one-shot badge injection into open Antigravity Desktop windows.",
     )
     parser.add_argument(
         "--clean-scratch",
         action="store_true",
-        help="Antigravity brain scratch/ geçici dosyalarını temizler.",
+        help="Clean Antigravity brain scratch/ temporary files.",
     )
     parser.add_argument(
         "--test-notify",
         action="store_true",
-        help="Masaüstüne örnek bir test bildirimi gönderir.",
+        help="Send a sample test notification to the desktop.",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Silme işlemi yapmadan temizlenecek dosya ve boyutları raporlar.",
+        help="Report files and sizes to be cleaned without deleting anything.",
     )
     parser.add_argument(
         "--older-than-hours",
         type=float,
         default=0.0,
-        help="Kaç saatten eski scratch dosyalarının temizleneceği (varsayılan: 0 = tümü).",
+        help="Only clean scratch files older than this many hours (default: 0 = all).",
     )
     args = parser.parse_args()
 
@@ -142,12 +142,12 @@ def main() -> int:
     if args.test_notify:
         return _run_cli_test_notify()
 
-    # Varsayılan: MCP Stdio Sunucusu + Lider Seçimli Arka Plan UI İzleyicisi
+    # Default: MCP Stdio Server + Background UI Watcher with Leader Election
     leader_lock = LeaderLock()
     watcher = UIWatcherThread(lock=leader_lock)
 
     def _graceful_shutdown(signum: int, _frame: Any) -> None:
-        log.info(f"Sinyal alındı ({signum}), temiz çıkış yapılıyor...")
+        log.info(f"Signal received ({signum}), shutting down cleanly...")
         watcher.stop()
         sys.exit(0)
 

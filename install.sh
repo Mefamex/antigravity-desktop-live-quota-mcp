@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ============================================================================
-# antigravity-desktop-live-quota-mcp — Tek Komutla Otomatik Kurulum Betiği (install.sh)
+# antigravity-desktop-live-quota-mcp — One-Command Auto-Installer (install.sh)
 #
-# Kullanım:
-#   ./install.sh                    # MCP kaydı + 2.33+ kalıcı CDP launcher + enjeksiyon
-#   ./install.sh --cdp-only         # Yalnızca kullanıcı-seviyesi CDP launcher kurulumu
-#   ./install.sh --no-cdp-launcher  # Yalnızca MCP kaydı ve enjeksiyon
+# Usage:
+#   ./install.sh                    # MCP registration + 2.33+ persistent CDP launcher + injection
+#   ./install.sh --cdp-only         # User-level CDP launcher setup only
+#   ./install.sh --no-cdp-launcher  # MCP registration and injection only
 # ============================================================================
 
 set -euo pipefail
@@ -32,7 +32,7 @@ for arg in "$@"; do
             exit 0
             ;;
         *)
-            echo "[HATA] Bilinmeyen parametre: ${arg}" >&2
+            echo "[ERROR] Unknown argument: ${arg}" >&2
             exit 2
             ;;
     esac
@@ -95,7 +95,7 @@ resolve_system_antigravity_bin() {
 
 setup_cdp_launcher() {
     echo "--------------------------------------------------------------------"
-    echo "🔧 Antigravity Desktop (>= 2.33.0) kalıcı CDP launcher ayarlanıyor (sudo gerekmez)..."
+    echo "🔧 Configuring persistent CDP launcher for Antigravity Desktop (>= 2.33.0) (no sudo required)..."
 
     local sys_desktop="/usr/share/applications/antigravity.desktop"
     local user_app_dir="${HOME}/.local/share/applications"
@@ -131,7 +131,7 @@ with open(src_path, "r", encoding="utf-8") as f:
 out_lines = [marker_line]
 for line in lines:
     if line.startswith("Exec=") and "--remote-debugging-port" not in line:
-        # Tırnaklı veya tırnaksız komut token'ı sonrası --remote-debugging-port=0 ekle
+        # Append --remote-debugging-port=0 after quoted or unquoted command token
         line = re.sub(
             r'^Exec=\s*("[^"]+"|\S+)',
             r"Exec=\1 --remote-debugging-port=0",
@@ -142,14 +142,14 @@ for line in lines:
 
 with open(dst_path, "w", encoding="utf-8") as f:
     f.write("\n".join(out_lines) + "\n")
-print(f"[BAŞARILI] Desktop launcher güncellendi -> {dst_path}")
+print(f"[SUCCESS] Desktop launcher updated -> {dst_path}")
 PYEOF
 
         if command -v desktop-file-validate >/dev/null 2>&1; then
             if desktop-file-validate "${user_desktop}"; then
-                echo "[BAŞARILI] desktop-file-validate doğrulaması geçti."
+                echo "[SUCCESS] desktop-file-validate passed."
             else
-                echo "[UYARI] desktop-file-validate uyarı döndürdü: ${user_desktop}" >&2
+                echo "[WARN] desktop-file-validate returned a warning: ${user_desktop}" >&2
             fi
         fi
 
@@ -160,7 +160,7 @@ PYEOF
             kbuildsycoca6 --noincremental >/dev/null 2>&1 || kbuildsycoca6 >/dev/null 2>&1 || true
         fi
     else
-        echo "[BİLGİ] Sistem masaüstü dosyası bulunamadı (${sys_desktop}), .desktop override atlandı."
+        echo "[INFO] System desktop file not found (${sys_desktop}); skipping .desktop override."
     fi
 
     # 2. Terminal CLI wrapper (~/.local/bin/antigravity)
@@ -174,9 +174,9 @@ PYEOF
     fi
 
     if [[ ( -e "${user_bin}" || -L "${user_bin}" ) && "${user_bin_managed}" -eq 0 ]]; then
-        echo "[UYARI] Mevcut ${user_bin} dosyamız bizim işaretçimizi taşımıyor, dokunulmadı." >&2
+        echo "[WARN] Existing ${user_bin} does not carry our marker; leaving untouched." >&2
     elif [[ -z "${real_bin}" ]]; then
-        echo "[UYARI] Sistem genelinde çalıştırılabilir Antigravity ikili dosyası bulunamadı; ${user_bin} sarmalayıcısı oluşturulmadı." >&2
+        echo "[WARN] No system-wide executable Antigravity binary found; ${user_bin} wrapper not created." >&2
     else
         mkdir -p "${user_bin_dir}"
         local quoted_real_bin
@@ -194,35 +194,35 @@ done
 exec ${quoted_real_bin} --remote-debugging-port=0 "\$@"
 EOF
         chmod +x "${user_bin}"
-        echo "[BAŞARILI] Terminal sarmalayıcısı hazır -> ${user_bin} (hedef: ${real_bin})"
+        echo "[SUCCESS] Terminal wrapper ready -> ${user_bin} (target: ${real_bin})"
     fi
 }
 
 echo "===================================================================="
-echo "⚡ ${SERVER_KEY} Kurulumu Başlatılıyor..."
+echo "⚡ Starting ${SERVER_KEY} Installation..."
 echo "===================================================================="
 
 if [[ "${CDP_ONLY}" -eq 1 ]]; then
     setup_cdp_launcher
     echo "===================================================================="
-    echo "✨ CDP launcher yapılandırması tamamlandı!"
-    echo "Not: Çalışan Antigravity Desktop varsa değişikliklerin aktifleşmesi"
-    echo "için uygulamayı bir kez tamamen kapatıp yeniden açın."
+    echo "✨ CDP launcher configuration complete!"
+    echo "Note: If Antigravity Desktop is already running, fully quit and reopen"
+    echo "the application once for changes to take effect."
     echo "===================================================================="
     exit 0
 fi
 
-# 1. Proje dosya kontrolü
+# 1. Project file check
 if [[ ! -f "${TARGET_MAIN}" ]]; then
-    echo "[HATA] main.py dosyası bulunamadı: ${TARGET_MAIN}" >&2
+    echo "[ERROR] main.py not found: ${TARGET_MAIN}" >&2
     exit 1
 fi
 chmod +x "${TARGET_MAIN}"
 
-# 2. Yapılandırma dizini kontrolü
+# 2. Configuration directory check
 mkdir -p "${CONFIG_DIR}"
 
-# 3. mcp_config.json dosyasına otomatik kayıt
+# 3. Automatic registration in mcp_config.json
 python3 -B - "${MCP_CONFIG}" "${TARGET_MAIN}" "${SERVER_KEY}" <<'PYEOF'
 import sys, json, os, shutil
 
@@ -237,10 +237,10 @@ if os.path.exists(config_file):
         with open(config_file, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
-        print(f"[UYARI] Mevcut mcp_config.json okunamadı, yenisi oluşturuluyor: {e}", file=sys.stderr)
+        print(f"[WARN] Could not read existing mcp_config.json, creating a new one: {e}", file=sys.stderr)
 
 servers = data.setdefault("mcpServers", {})
-# Eski kısa isim varsa temizle
+# Remove legacy short name if present
 servers.pop("antigravity-quota", None)
 
 servers[server_key] = {
@@ -252,17 +252,17 @@ servers[server_key] = {
 with open(config_file, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2, ensure_ascii=False)
 
-print(f"[BAŞARILI] {config_file} içine '{server_key}' MCP sunucusu kaydedildi.")
+print(f"[SUCCESS] Registered '{server_key}' MCP server in {config_file}.")
 PYEOF
 
-# 4. Antigravity >= 2.33.0 kalıcı CDP launcher kurulumu
+# 4. Persistent CDP launcher setup for Antigravity >= 2.33.0
 if [[ "${NO_CDP_LAUNCHER}" -eq 0 ]]; then
     setup_cdp_launcher
 fi
 
-# 5. Hemen canlı pencereye enjeksiyon testi yap ve CDP durumunu denetle
+# 5. Immediately test live window injection and inspect CDP status
 echo "--------------------------------------------------------------------"
-echo "🔍 Aktif Antigravity Desktop penceresine rozet enjeksiyonu deneniyor..."
+echo "🔍 Attempting badge injection into active Antigravity Desktop window..."
 python3 -B "${TARGET_MAIN}" --inject || true
 
 PYTHONPATH="${SCRIPT_DIR}" python3 -B - <<'PYEOF'
@@ -271,15 +271,15 @@ from src.discovery import diagnose_cdp_status
 diag = diagnose_cdp_status()
 if not diag.get("cdp_available") and diag.get("reason") == "cdp_disabled_in_antigravity_2_33":
     print("")
-    print("⚠️  ÖNEMLİ UYARI (Antigravity >= 2.33.0):")
-    print("    Açık olan Antigravity Desktop penceresi --remote-debugging-port=0")
-    print("    olmadan başlatıldığı için canlı rozet şu an enjekte edilemedi.")
-    print("    Kalıcı launcher ayarı yapıldı; rozetin görünmesi için Antigravity")
-    print("    Desktop uygulamasını bir kez tamamen kapatıp yeniden açın.")
+    print("⚠️  IMPORTANT WARNING (Antigravity >= 2.33.0):")
+    print("    The running Antigravity Desktop window was launched without")
+    print("    --remote-debugging-port=0, so the live badge could not be injected now.")
+    print("    The persistent launcher has been configured; please fully quit and")
+    print("    reopen Antigravity Desktop once for the badge to appear.")
 PYEOF
 
 echo "--------------------------------------------------------------------"
-echo "✨ Kurulum tamamlandı!"
-echo "Antigravity Desktop veya agy CLI her açıldığında bu MCP sunucusu"
-echo "otomatik başlayacak ve canlı kota rozetini pencere üstüne takacaktır."
+echo "✨ Installation complete!"
+echo "Whenever Antigravity Desktop or agy CLI starts, this MCP server will"
+echo "launch automatically and attach the live quota badge to the title bar."
 echo "===================================================================="

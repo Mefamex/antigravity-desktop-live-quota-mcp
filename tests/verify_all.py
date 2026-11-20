@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-antigravity-quota-mcp — Uçtan Uca Doğrulama ve Çakışma Testi (tests/verify_all.py)
+antigravity-quota-mcp — End-to-End Verification & Collision Test (tests/verify_all.py)
 
-Test Edilen Senaryolar:
-1. Soğuk Başlangıç (Cold Start) Gecikmesi: Süreç başlatma + JSON-RPC `initialize` süresi (ms).
-2. MCP Araç Çağrıları: `tools/list`, `get_quota_status`, `reinject_badge`.
-3. Çoklu Örnek Çakışma Önleme (Multi-Instance Collision & Failover Test):
-   - Aynı anda 2 ayrı MCP sunucu süreci başlatılır (Süreç A ve Süreç B).
-   - Süreç A'nın `LEADER`, Süreç B'nin `STANDBY` olduğu doğrulanır.
-   - Süreç A kapatılır; Süreç B'nin otomatik olarak `LEADER` rolünü devraldığı (Failover) doğrulanır.
+Tested Scenarios:
+1. Cold Start Latency: Process startup + JSON-RPC `initialize` duration (ms).
+2. MCP Tool Calls: `tools/list`, `get_quota_status`, `reinject_badge`.
+3. Multi-Instance Collision & Failover Test:
+   - Starts 2 separate MCP server processes simultaneously (Process A and Process B).
+   - Verifies Process A is `LEADER` and Process B is `STANDBY`.
+   - Terminates Process A; verifies Process B automatically takes over `LEADER` (Failover).
 """
 
 from __future__ import annotations
@@ -58,10 +58,10 @@ def call_tool(proc: subprocess.Popen[str], req_id: int, name: str, args: dict[st
 
 
 def _run_ui_payload_js_checks(js_payload: str) -> None:
-    """Node.js mevcutsa üretilen UI JS yükünün sözdizimini ve davranışlarını doğrular."""
+    """Verifies syntax and runtime behavior of the generated UI JS payload when Node.js is available."""
     node_bin = shutil.which("node")
     if not node_bin:
-        print("[SKIP/INFO] Node.js bulunamadı; headless JS davranış testi atlandı.")
+        print("[SKIP/INFO] Node.js not found; skipping headless JS behavior test.")
         return
 
     import config
@@ -73,7 +73,7 @@ def _run_ui_payload_js_checks(js_payload: str) -> None:
         capture_output=True,
         timeout=10,
     )
-    assert syntax_proc.returncode == 0, f"UI JS sözdizimi hatası: {syntax_proc.stderr}"
+    assert syntax_proc.returncode == 0, f"UI JS syntax error: {syntax_proc.stderr}"
 
     harness = f"""
 const assert = require("node:assert/strict");
@@ -215,45 +215,45 @@ async function main() {{
         for (let i = 0; i < 6; i++) await new Promise(r => setImmediate(r));
     }};
 
-    // 1. Eski durumdan güvenli geçiş (legacy history dizisi + undefined reattachFrameId)
+    // 1. Safe migration from legacy state (legacy history array + undefined reattachFrameId)
     const res1 = vm.runInNewContext(JS_CODE, sandbox);
     assert.equal(res1, "OK");
     assert.equal(disconnectedCount, 1);
     assert.ok(clearedIntervals.includes(91) && clearedIntervals.includes(92));
-    assert.equal(cancelledFrames.length, 0, "undefined reattachFrameId için cancelAnimationFrame çağrılmamalı");
+    assert.equal(cancelledFrames.length, 0, "cancelAnimationFrame must not be called for undefined reattachFrameId");
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.reattachFrameId, null);
     assert.ok(Array.isArray(mockWindow.__AGY_QUOTA_STATE__.history.g5h));
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h[0].pct, 42);
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.c5h[0].pct, 88);
 
     await flush();
-    assert.ok(badgeEl !== null, "Rozet DOM'a eklenmeli");
-    assert.ok(badgeEl.title.includes("Aktif Model Grubu: gemini"), badgeEl.title);
+    assert.ok(badgeEl !== null, "Badge should be attached to the DOM");
+    assert.ok(badgeEl.title.includes("Active Model Group: gemini"), badgeEl.title);
 
-    // 2. Dinamik model açıklaması ve effort token temizleme kontrolleri
+    // 2. Dynamic model description and effort token stripping checks
     const fetchCycle = intervalCallbacks[0].fn;
     const renderCycle = intervalCallbacks[1].fn;
 
     modelBtnAria = "Select model, current: FutureModel Alpha (medium)";
     renderCycle();
-    assert.ok(badgeEl.title.includes("Aktif Model Grubu: claude"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Active Model Group: claude"), badgeEl.title);
 
     modelBtnAria = "Select model, current: Gemini 4 Argon (low)";
     renderCycle();
-    assert.ok(badgeEl.title.includes("Aktif Model Grubu: argon"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Active Model Group: argon"), badgeEl.title);
 
     modelBtnAria = "Select model, current: Gemini 3 Pro minimal";
     renderCycle();
-    assert.ok(badgeEl.title.includes("Aktif Model Grubu: gemini"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Active Model Group: gemini"), badgeEl.title);
 
     hasModelTriggerBtn = false;
     extraButtons = [{{ innerText: "FutureModel Alpha (high)" }}];
     renderCycle();
-    assert.ok(badgeEl.title.includes("Aktif Model Grubu: claude"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Active Model Group: claude"), badgeEl.title);
     hasModelTriggerBtn = true;
 
-    // 3. Kova bazlı (per-bucket) erime hızı sıfırlama testi
-    // g5h: 42 -> 50 (+8 > +5) sıfırlanır -> [50]; c5h: 88 -> 90 (+2 <= +5) korunur -> [88, 90]
+    // 3. Per-bucket burn rate reset test
+    // g5h: 42 -> 50 (+8 > +5) resets -> [50]; c5h: 88 -> 90 (+2 <= +5) preserved -> [88, 90]
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h.length, 1);
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h[0].pct, 50);
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.c5h.length, 2);
@@ -263,10 +263,12 @@ async function main() {{
     currentQuotaResp.groups[1].buckets[1].remainingFraction = 0.80;
     await fetchCycle();
     await flush();
-    assert.ok(badgeEl.title.includes("Gemini (5h) Tüketim: 🔥"), badgeEl.title);
-    assert.ok(badgeEl.title.includes("Claude/GPT (5h) Tüketim: 🔥"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Gemini (5h) Burn Rate: 🔥"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Claude/GPT (5h) Burn Rate: 🔥"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("%/hr (Est. depletion: ~"), badgeEl.title);
+    assert.ok(badgeEl.innerHTML.includes("40%"), badgeEl.innerHTML);
 
-    // Gemini 5h sıfırlanır (40 -> 100), Claude 5h erimeye devam eder (80 -> 75)
+    // Gemini 5h resets (40 -> 100), Claude 5h continues burning (80 -> 75)
     fakeNow += 60000;
     currentQuotaResp.groups[0].buckets[1].remainingFraction = 1.0;
     currentQuotaResp.groups[1].buckets[1].remainingFraction = 0.75;
@@ -274,29 +276,29 @@ async function main() {{
     await flush();
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h.length, 1);
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h[0].pct, 100);
-    assert.ok(!badgeEl.title.includes("Gemini (5h) Tüketim:"), badgeEl.title);
+    assert.ok(!badgeEl.title.includes("Gemini (5h) Burn Rate:"), badgeEl.title);
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.c5h.length, 4);
-    assert.ok(badgeEl.title.includes("Claude/GPT (5h) Tüketim: 🔥"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Claude/GPT (5h) Burn Rate: 🔥"), badgeEl.title);
 
-    // Gemini 5h yeni döngüde erir (100 -> 95), Claude küçük dalgalanma (+3 <= +5) yaşar (75 -> 78)
+    // Gemini 5h burns in new cycle (100 -> 95), Claude experiences small fluctuation (+3 <= +5) (75 -> 78)
     fakeNow += 60000;
     currentQuotaResp.groups[0].buckets[1].remainingFraction = 0.95;
     currentQuotaResp.groups[1].buckets[1].remainingFraction = 0.78;
     await fetchCycle();
     await flush();
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.g5h.length, 2);
-    assert.ok(badgeEl.title.includes("Gemini (5h) Tüketim: 🔥"), badgeEl.title);
+    assert.ok(badgeEl.title.includes("Gemini (5h) Burn Rate: 🔥"), badgeEl.title);
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.history.c5h.length, 5);
 
-    // 4. Debounced MutationObserver ve yeniden enjeksiyonda cancelAnimationFrame
+    // 4. Debounced MutationObserver and cancelAnimationFrame on reinjection
     badgeEl = null;
     for (let i = 0; i < 5; i++) observerCallback();
-    assert.equal(rafCallbacks.size, 1, "5 DOM mutasyonu tek requestAnimationFrame planlamalı");
+    assert.equal(rafCallbacks.size, 1, "5 DOM mutations should schedule a single requestAnimationFrame");
     const pendingRafId = mockWindow.__AGY_QUOTA_STATE__.reattachFrameId;
     assert.ok(pendingRafId !== null);
     rafCallbacks.get(pendingRafId)();
     assert.equal(mockWindow.__AGY_QUOTA_STATE__.reattachFrameId, null);
-    assert.ok(badgeEl !== null, "rAF sonrası rozet geri eklenmeli");
+    assert.ok(badgeEl !== null, "Badge should be reattached after rAF");
 
     badgeEl = null;
     observerCallback();
@@ -304,7 +306,7 @@ async function main() {{
     assert.ok(cancelTargetId !== null);
     const res2 = vm.runInNewContext(JS_CODE, sandbox);
     assert.equal(res2, "OK");
-    assert.ok(cancelledFrames.includes(cancelTargetId), "Bekleyen reattachFrameId iptal edilmeli");
+    assert.ok(cancelledFrames.includes(cancelTargetId), "Pending reattachFrameId should be cancelled");
     assert.equal(disconnectedCount, 2);
     await flush();
 }}
@@ -320,21 +322,21 @@ main().catch((err) => {{
         capture_output=True,
         timeout=10,
     )
-    assert run_proc.returncode == 0, f"Headless JS davranış testi başarısız:\n{run_proc.stderr}\n{run_proc.stdout}"
-    print("[PASS] Headless Node.js testi: dinamik model eşleme, kova bazlı burn-rate sıfırlama ve rAF debounced MutationObserver doğrulandı!")
+    assert run_proc.returncode == 0, f"Headless JS behavior test failed:\n{run_proc.stderr}\n{run_proc.stdout}"
+    print("[PASS] Headless Node.js test: dynamic model mapping, per-bucket burn-rate reset, and rAF-debounced MutationObserver verified!")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Antigravity Quota MCP Doğrulama Testleri")
+    parser = argparse.ArgumentParser(description="Antigravity Quota MCP Verification Tests")
     parser.add_argument(
         "--strict-cdp",
         action="store_true",
-        help="CDP hedefi bulunamazsa testi geçmek yerine hata ver.",
+        help="Fail instead of skipping if no CDP target is found.",
     )
     args = parser.parse_args()
 
     print("=" * 68)
-    print("1. SOĞUK BAŞLANGIÇ (COLD START) & MCP EL SIKIŞMA TESTİ")
+    print("1. COLD START & MCP HANDSHAKE TEST")
     print("=" * 68)
 
     env = os.environ.copy()
@@ -364,14 +366,14 @@ def main() -> int:
             },
         )
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
-        print(f"[PASS] Süreç 1 (PID: {proc1.pid}) initialize el sıkışması: {elapsed_ms:.1f} ms")
+        print(f"[PASS] Process 1 (PID: {proc1.pid}) initialize handshake: {elapsed_ms:.1f} ms")
         assert init_resp["result"]["serverInfo"]["name"] == "antigravity-desktop-live-quota-mcp"
 
-        # Watcher thread'in kilidi alması için 150ms bekle
+        # Wait 150ms for watcher thread to acquire the lock
         time.sleep(0.15)
 
         print("\n" + "=" * 68)
-        print("2. ÇOKLU ÖRNEK (2 EŞZAMANLI MCP SÜRECİ) ÇAKIŞMA ÖNLEME TESTİ")
+        print("2. MULTI-INSTANCE (2 CONCURRENT MCP PROCESSES) COLLISION PREVENTION TEST")
         print("=" * 68)
 
         proc2 = subprocess.Popen(
@@ -388,48 +390,48 @@ def main() -> int:
         status1 = call_tool(proc1, 2, "get_instance_status")
         status2 = call_tool(proc2, 2, "get_instance_status")
 
-        print(f"• Süreç 1 Durumu: PID={status1['pid']}, Rol={status1['role']}, LiderPID={status1['leader_pid']}")
-        print(f"• Süreç 2 Durumu: PID={status2['pid']}, Rol={status2['role']}, LiderPID={status2['leader_pid']}")
+        print(f"• Process 1 Status: PID={status1['pid']}, Role={status1['role']}, LeaderPID={status1['leader_pid']}")
+        print(f"• Process 2 Status: PID={status2['pid']}, Role={status2['role']}, LeaderPID={status2['leader_pid']}")
 
-        assert status1["role"] == "LEADER", "Süreç 1 LEADER olmalıydı!"
-        assert status2["role"] == "STANDBY", "Süreç 2 STANDBY olmalıydı!"
-        assert status2["leader_pid"] == proc1.pid, "Süreç 2, Lider olarak Süreç 1'i göstermeliydi!"
-        print("[PASS] Çakışma önleme doğrulandı: Sadece 1 süreç LEADER, 2. süreç STANDBY!")
+        assert status1["role"] == "LEADER", "Process 1 should have been LEADER!"
+        assert status2["role"] == "STANDBY", "Process 2 should have been STANDBY!"
+        assert status2["leader_pid"] == proc1.pid, "Process 2 should report Process 1 as Leader!"
+        print("[PASS] Collision prevention verified: Only 1 process is LEADER, 2nd process is STANDBY!")
 
         print("\n" + "=" * 68)
-        print("3. HER İKİ SÜREÇTE MCP ARAÇLARININ VE CANLI KOTANIN TESTİ")
+        print("3. MCP TOOLS & LIVE QUOTA TEST ON BOTH PROCESSES")
         print("=" * 68)
 
         q1 = call_tool(proc1, 3, "get_quota_status")
         q2 = call_tool(proc2, 3, "get_quota_status")
-        print(f"• Süreç 1 Kota Yanıtı: {q1['summary_text']}")
-        print(f"• Süreç 2 Kota Yanıtı: {q2['summary_text']}")
+        print(f"• Process 1 Quota Response: {q1['summary_text']}")
+        print(f"• Process 2 Quota Response: {q2['summary_text']}")
         assert q1["ok"] is True and q2["ok"] is True
-        print("[PASS] Her iki MCP süreci de stdio üzerinden kota sorgularına kusursuz yanıt veriyor!")
+        print("[PASS] Both MCP processes respond cleanly to quota queries over stdio!")
 
         print("\n" + "=" * 68)
-        print("4. LİDER DÜŞMESİ VE OTOMATİK DEVİR (FAILOVER) TESTİ")
+        print("4. LEADER FAILURE & AUTOMATIC FAILOVER TEST")
         print("=" * 68)
 
         proc1.terminate()
         proc1.wait(timeout=3)
-        print(f"• Süreç 1 (PID: {proc1.pid}) sonlandırıldı. Süreç 2'nin liderliği devralması bekleniyor...")
+        print(f"• Process 1 (PID: {proc1.pid}) terminated. Waiting for Process 2 to take over leadership...")
 
         time.sleep(1.2)
         status2_after = call_tool(proc2, 4, "get_instance_status")
-        print(f"• Süreç 2 Yeni Durumu: PID={status2_after['pid']}, Rol={status2_after['role']}, LiderPID={status2_after['leader_pid']}")
-        assert status2_after["role"] == "LEADER", "Süreç 1 kapandığında Süreç 2 otomatik LEADER olmalıydı!"
-        assert status2_after.get("server_version") == "1.2.0", f"Beklenen sürüm 1.2.0, gelen: {status2_after.get('server_version')}"
+        print(f"• Process 2 New Status: PID={status2_after['pid']}, Role={status2_after['role']}, LeaderPID={status2_after['leader_pid']}")
+        assert status2_after["role"] == "LEADER", "Process 2 should automatically become LEADER when Process 1 exits!"
+        assert status2_after.get("server_version") == "1.2.0", f"Expected version 1.2.0, got: {status2_after.get('server_version')}"
         cdp_status = status2_after.get("cdp_status", {})
         for req_key in ("cdp_available", "reason", "fix_hint", "antigravity_running", "has_remote_debugging_flag"):
-            assert req_key in cdp_status, f"cdp_status içinde '{req_key}' alanı eksik!"
+            assert req_key in cdp_status, f"Missing '{req_key}' field in cdp_status!"
         if cdp_status.get("cdp_available"):
-            assert cdp_status.get("antigravity_running") is True, "CDP açıkken antigravity_running True olmalı!"
-        print(f"• CDP Tanılama: available={cdp_status['cdp_available']}, running={cdp_status['antigravity_running']}, reason={cdp_status['reason']}")
-        print("[PASS] Otomatik Failover, sürüm (1.2.0) ve cdp_status alanları doğrulandı!")
+            assert cdp_status.get("antigravity_running") is True, "antigravity_running must be True when CDP is available!"
+        print(f"• CDP Diagnostics: available={cdp_status['cdp_available']}, running={cdp_status['antigravity_running']}, reason={cdp_status['reason']}")
+        print("[PASS] Automatic Failover, version (1.2.0), and cdp_status fields verified!")
 
         print("\n" + "=" * 68)
-        print("5. CANLI PENCERE ROZET ENJEKSİYONU (CDP) & PAYLOAD TESTİ")
+        print("5. LIVE WINDOW BADGE INJECTION (CDP) & PAYLOAD TEST")
         print("=" * 68)
 
         from src.ui_payload import build_injection_js
@@ -451,48 +453,48 @@ def main() -> int:
             "history.c5h",
             "+ 5",
         ):
-            assert token in js_payload, f"UI JS payload içinde '{token}' bulunamadı!"
-        print("[PASS] UI JS payload dinamik model tespiti, rAF debouncing, per-bucket burn-rate ve fetchSeq koruması içeriyor!")
+            assert token in js_payload, f"'{token}' not found in UI JS payload!"
+        print("[PASS] UI JS payload contains dynamic model detection, rAF debouncing, per-bucket burn-rate, and fetchSeq guard!")
 
         _run_ui_payload_js_checks(js_payload)
 
         inj = call_tool(proc2, 5, "reinject_badge", {"force": True})
-        print(f"• Enjeksiyon Sonucu: {json.dumps(inj, ensure_ascii=False)}")
+        print(f"• Injection Result: {json.dumps(inj, ensure_ascii=False)}")
         if cdp_status.get("cdp_available") or args.strict_cdp:
-            assert inj["ok"] is True, f"CDP erişilebilir/zorunlu olduğu halde enjeksiyon başarısız: {inj}"
+            assert inj["ok"] is True, f"Injection failed even though CDP is available/strict: {inj}"
         else:
             assert inj["ok"] is False
             assert "diagnostics" in inj and inj["diagnostics"].get("reason") != ""
             assert inj.get("message", "") != ""
-            print(f"[SKIP/INFO] Canlı CDP penceresi şu an kapalı (Neden: {inj['diagnostics']['reason']}). Mesaj doğrulandı.")
+            print(f"[SKIP/INFO] Live CDP window is currently closed (Reason: {inj['diagnostics']['reason']}). Message verified.")
 
         print("\n" + "=" * 68)
-        print("6. SCRATCH TEMİZLİĞİ VE TÜM MCP ARAÇLARI (TOOLS/LIST) TESTİ")
+        print("6. SCRATCH CLEANUP & ALL MCP TOOLS (TOOLS/LIST) TEST")
         print("=" * 68)
 
         tools_resp = send_rpc(proc2, {"jsonrpc": "2.0", "id": 6, "method": "tools/list", "params": {}})
         tool_names = [t["name"] for t in tools_resp["result"]["tools"]]
-        print(f"• Kayıtlı MCP Araçları ({len(tool_names)} adet): {', '.join(tool_names)}")
+        print(f"• Registered MCP Tools ({len(tool_names)}): {', '.join(tool_names)}")
         assert "clean_scratch_cache" in tool_names
         assert "get_quota_status" in tool_names
         assert "reinject_badge" in tool_names
         assert "get_instance_status" in tool_names
 
         clean_res = call_tool(proc2, 7, "clean_scratch_cache", {"dry_run": True})
-        print(f"• Scratch Temizlik (Dry-Run): ok={clean_res.get('ok')}, silinecek={clean_res.get('deleted_files_count')}, boyut={clean_res.get('freed_human')}")
+        print(f"• Scratch Cleanup (Dry-Run): ok={clean_res.get('ok')}, cleanable={clean_res.get('deleted_files_count')}, size={clean_res.get('freed_human')}")
         assert clean_res.get("ok") is True
 
         print("\n" + "=" * 68)
-        print("7. MASAÜSTÜ BİLDİRİM (NOTIFIER) VE KRİTİK EŞİK/RESET MANTIĞI TESTİ")
+        print("7. DESKTOP NOTIFICATION (NOTIFIER) & CRITICAL THRESHOLD/RESET LOGIC TEST")
         print("=" * 68)
 
         from src.models import BucketQuota, GroupQuota, QuotaReport
         from src.notifier import QuotaNotifier, is_notify_send_available
 
-        print(f"• notify-send kullanılabilirliği: {is_notify_send_available()}")
+        print(f"• notify-send availability: {is_notify_send_available()}")
         notifier = QuotaNotifier()
 
-        # Simülasyon 1: Kritik eşik altı (%10) kota raporu
+        # Simulation 1: Quota report below critical threshold (10%)
         critical_report = QuotaReport(
             ok=True,
             gemini_weekly_pct=80,
@@ -512,27 +514,28 @@ def main() -> int:
                             remaining_fraction=0.10,
                             remaining_percent=10,
                             reset_time="2026-11-08T05:00:00Z",
-                            description="Tükenmek üzere",
+                            description="Running low",
                         )
                     ],
                 )
             ],
         )
 
-        # Standby modda bildirim üretmemeli
+        # Should not emit alerts in standby mode
         standby_alerts = notifier.check_and_notify(critical_report, is_leader=False)
-        assert len(standby_alerts) == 0, "Standby süreç bildirim göndermemeli!"
+        assert len(standby_alerts) == 0, "Standby process must not send notifications!"
 
-        # Lider modda bildirim göndermeli
+        # Should emit alert in leader mode
         leader_alerts = notifier.check_and_notify(critical_report, is_leader=True)
-        print(f"• Kritik Eşik Bildirimi: {leader_alerts}")
-        assert len(leader_alerts) == 1, "Kritik eşikte 1 bildirim üretilmeliydi!"
+        print(f"• Critical Threshold Alert: {leader_alerts}")
+        assert len(leader_alerts) == 1, "Should have emitted 1 notification at critical threshold!"
+        assert "⚠️ Critical AI Quota Alert:" in leader_alerts[0], f"Unexpected critical alert title: {leader_alerts[0]}"
 
-        # Cooldown içinde tekrar bildirim üretmemeli (anti-spam)
+        # Should not emit duplicate alerts during cooldown (anti-spam)
         cooldown_alerts = notifier.check_and_notify(critical_report, is_leader=True)
-        assert len(cooldown_alerts) == 0, "Cooldown süresince spam engellenmeliydi!"
+        assert len(cooldown_alerts) == 0, "Spam should be suppressed during cooldown!"
 
-        # Simülasyon 2: Kota yenilendi (%95)
+        # Simulation 2: Quota refreshed (95%)
         reset_report = QuotaReport(
             ok=True,
             gemini_weekly_pct=80,
@@ -552,19 +555,20 @@ def main() -> int:
                             remaining_fraction=0.95,
                             remaining_percent=95,
                             reset_time="2026-11-08T10:00:00Z",
-                            description="Tazelendi",
+                            description="Refreshed",
                         )
                     ],
                 )
             ],
         )
         reset_alerts = notifier.check_and_notify(reset_report, is_leader=True)
-        print(f"• Kota Yenilenme Bildirimi: {reset_alerts}")
-        assert len(reset_alerts) == 1, "Kota sıfırlandığında yenilenme bildirimi üretilmeliydi!"
-        print("[PASS] Notifier bildirim mantığı, anti-spam cooldown ve lider koruması doğrulandı!")
+        print(f"• Quota Refresh Alert: {reset_alerts}")
+        assert len(reset_alerts) == 1, "Should have emitted refresh notification when quota reset!"
+        assert "🔄 AI Quota Refreshed:" in reset_alerts[0], f"Unexpected refresh alert title: {reset_alerts[0]}"
+        print("[PASS] Notifier alert logic, anti-spam cooldown, and leader guard verified!")
 
         print("\n" + "=" * 68)
-        print("8. RFC-6455 WEBSOCKET PARÇALI ÇERÇEVE (FRAGMENTATION) & PING/PONG TESTİ")
+        print("8. RFC-6455 WEBSOCKET FRAGMENTATION & PING/PONG TEST")
         print("=" * 68)
 
         from src.cdp_client import _recv_ws_text_frame
@@ -587,7 +591,7 @@ def main() -> int:
             buf = bytearray()
             while len(buf) < n:
                 chunk = sock.recv(n - len(buf))
-                assert chunk, "İstemci Pong çerçevesi beklenenden erken kesildi!"
+                assert chunk, "Client Pong frame closed earlier than expected!"
                 buf.extend(chunk)
             return bytes(buf)
 
@@ -601,7 +605,7 @@ def main() -> int:
             _send_server_frame(server_sock, fin=True, opcode=0x00, payload=b'ult": "ok"}')
 
             got = _recv_ws_text_frame(client_sock)
-            assert got == '{"id": 1, "result": "ok"}', f"Beklenen birleşik metin alınamadı: {got!r}"
+            assert got == '{"id": 1, "result": "ok"}', f"Failed to receive expected reassembled text: {got!r}"
 
             pong_head = _read_exact(server_sock, 2)
             pong_fin = bool(pong_head[0] & 0x80)
@@ -613,15 +617,15 @@ def main() -> int:
             elif pong_len == 127:
                 pong_len = struct.unpack("!Q", _read_exact(server_sock, 8))[0]
 
-            assert pong_fin is True, "Pong çerçevesinde FIN=1 olmalı!"
-            assert pong_opcode == 0x0A, f"Beklenen opcode 0x0A (Pong), gelen: {pong_opcode:#x}"
-            assert pong_masked is True, "İstemciden gönderilen Pong çerçevesi maskeli olmalı!"
+            assert pong_fin is True, "Pong frame must have FIN=1!"
+            assert pong_opcode == 0x0A, f"Expected opcode 0x0A (Pong), got: {pong_opcode:#x}"
+            assert pong_masked is True, "Client-sent Pong frame must be masked!"
 
             mask_key = _read_exact(server_sock, 4)
             masked_payload = _read_exact(server_sock, pong_len)
             unmasked_payload = bytes(b ^ mask_key[i % 4] for i, b in enumerate(masked_payload))
-            assert unmasked_payload == b"ping-123", f"Beklenen Pong payload 'ping-123', gelen: {unmasked_payload!r}"
-            print("[PASS] Parçalı WebSocket çerçeveleri birleştirildi ve araya giren Ping'e maskeli Pong ile yanıt verildi!")
+            assert unmasked_payload == b"ping-123", f"Expected Pong payload 'ping-123', got: {unmasked_payload!r}"
+            print("[PASS] Fragmented WebSocket frames reassembled and interleaved Ping answered with masked Pong!")
         finally:
             server_sock.close()
             client_sock.close()
@@ -629,7 +633,7 @@ def main() -> int:
         proc2.terminate()
         proc2.wait(timeout=3)
 
-        print("\n[SUCCESS] Tüm testler (Soğuk başlangıç, Çoklu Örnek Kilit, Failover, Kota, CDP UI, Scratch Temizliği, Masaüstü Bildirimleri ve WebSocket Fragmentation/Pong) başarıyla geçti!")
+        print("\n[SUCCESS] All tests (Cold Start, Multi-Instance Lock, Failover, Quota, CDP UI, Scratch Cleanup, Desktop Notifications, and WebSocket Fragmentation/Pong) passed!")
         return 0
     finally:
         try:

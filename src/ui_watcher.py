@@ -1,13 +1,13 @@
 """
-Arka Plan UI İzleyici ve Enjektör Modülü (src/ui_watcher.py)
+Background UI Watcher and Injector Module (src/ui_watcher.py)
 
-Çalışma Mantığı:
-1. `LeaderLock` (`fcntl.flock`) ile liderlik kontrolü yapar.
-   - Eğer sistemde çalışan başka bir `antigravity-quota-mcp` süreci zaten liderse,
-     bu süreç **YEDEK (Standby)** modda bekler ve CDP soketlerine dokunmaz.
-   - Lider olan süreç ise açık Antigravity Desktop pencerelerini kontrol eder;
-     rozet henüz eklenmemişse (veya `Ctrl+R` ile sayfa yenilenmişse) rozeti
-     pencereye enjekte eder.
+How It Works:
+1. Checks leadership using `LeaderLock` (`fcntl.flock`).
+   - If another `antigravity-quota-mcp` process on the system is already the leader,
+     this process stays in **STANDBY** mode and does not touch CDP sockets.
+   - The leader process monitors open Antigravity Desktop windows; if the badge
+     is not yet present (or the page was refreshed via `Ctrl+R`), it injects
+     the badge into the window.
 """
 
 from __future__ import annotations
@@ -30,13 +30,13 @@ log = get_logger("watcher")
 
 def inject_into_all_windows(force: bool = False) -> dict[str, Any]:
     """
-    Açık olan tüm Antigravity Desktop pencerelerini tarar ve rozeti enjekte eder.
-    `force=False` ise yalnızca rozeti eksik olan pencerelere enjeksiyon yapar.
+    Scans all open Antigravity Desktop windows and injects the badge.
+    When `force=False`, only injects into windows where the badge is missing.
     """
     pages = discover_cdp_page_targets()
     if not pages:
         diag = diagnose_cdp_status()
-        msg = diag.get("fix_hint") or "Açık Antigravity Desktop penceresi (CDP hedefi) bulunamadı."
+        msg = diag.get("fix_hint") or "No open Antigravity Desktop window (CDP target) found."
         return {
             "ok": False,
             "injected_count": 0,
@@ -69,7 +69,7 @@ def inject_into_all_windows(force: bool = False) -> dict[str, Any]:
             val = res.get("result", {}).get("result", {}).get("value")
             if val == "OK":
                 injected += 1
-                log.info(f"Canlı kota rozeti enjekte edildi -> '{title}'")
+                log.info(f"Live quota badge injected -> '{title}'")
             else:
                 errors.append(f"{title}: {val}")
         except Exception as exc:
@@ -86,8 +86,8 @@ def inject_into_all_windows(force: bool = False) -> dict[str, Any]:
 
 class UIWatcherThread(threading.Thread):
     """
-    Lider seçimi (`LeaderLock`) destekli arka plan izleyici iş parçacığı.
-    `daemon=True` olarak çalışır; ana MCP süreci kapandığında anında sonlanır.
+    Background watcher thread backed by leader election (`LeaderLock`).
+    Runs with `daemon=True`; terminates immediately when the main MCP process exits.
     """
 
     def __init__(self, lock: LeaderLock) -> None:
@@ -100,19 +100,19 @@ class UIWatcherThread(threading.Thread):
         self._notifier = QuotaNotifier()
 
     def stop(self) -> None:
-        """İzleyici döngüsünü durdurur ve kilidi serbest bırakır."""
+        """Stops the watcher loop and releases the lock."""
         self._stop_event.set()
         self.lock.release()
 
     def run(self) -> None:
         if not config.UI_Injection_Enabled:
-            log.info("UI enjeksiyonu yapılandırma ile devre dışı bırakıldı.")
+            log.info("UI injection is disabled by configuration.")
             return
 
         while not self._stop_event.is_set():
             if self.lock.try_acquire():
                 if not self._was_leader:
-                    log.info("Bu süreç UI Lideri olarak aktifleşti.")
+                    log.info("This process has become active as the UI Leader.")
                     self._was_leader = True
                 cdp_active = False
                 try:
@@ -127,11 +127,11 @@ class UIWatcherThread(threading.Thread):
                         log.warning(res["message"])
                         self._cdp_warning_logged = True
                 except Exception as exc:
-                    log.debug(f"UI kontrol döngüsü hatası: {exc}")
+                    log.debug(f"UI watch loop error: {exc}")
 
-                # Lider iken masaüstü bildirimlerini kontrol et (hız sınırlamalı);
-                # UI rozeti aktifken (`cdp_active=True`) yerel önbellek sayfa içinde tazelenir,
-                # bu sayede mükerrer bulut RPC çağrılarından kaçınılır.
+                # While acting as Leader, check desktop notifications (rate-limited);
+                # when the UI badge is active (`cdp_active=True`), the local cache is
+                # refreshed inside the page, avoiding duplicate cloud RPC calls.
                 if config.ENABLE_DESKTOP_NOTIFICATIONS:
                     now = time.monotonic()
                     if (now - self._last_notify_check_ts) >= config.WATCHER_NOTIFY_INTERVAL_SEC:
@@ -141,10 +141,10 @@ class UIWatcherThread(threading.Thread):
                             if live_quota.ok:
                                 self._notifier.check_and_notify(live_quota, is_leader=True)
                         except Exception as exc:
-                            log.debug(f"Bildirim kontrol hatası: {exc}")
+                            log.debug(f"Notification check error: {exc}")
             else:
                 if self._was_leader:
-                    log.info("UI Liderliği başka bir sürece geçti, yedek moda geçildi.")
+                    log.info("UI Leadership moved to another process; switching to standby mode.")
                     self._was_leader = False
 
             self._stop_event.wait(timeout=float(config.WATCHER_CHECK_INTERVAL_SEC))

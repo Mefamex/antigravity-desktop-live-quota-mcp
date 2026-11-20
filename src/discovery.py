@@ -1,11 +1,11 @@
 """
-Süreç ve Port Keşif Modülü (src/discovery.py)
+Process and Port Discovery Module (src/discovery.py)
 
-Bu modül iki temel keşif görevini yerine getirir:
-1. Çalışan Antigravity `language_server` sürecinin PID, `--csrf_token` ve
-   dinlediği yerel TCP portlarını tespit eder.
-2. `~/.config/Antigravity/DevToolsActivePort` dosyasını okuyarak aktif Electron
-   penceresinin Chrome DevTools Protocol (CDP) WebSocket adreslerini bulur.
+This module performs two primary discovery tasks:
+1. Detects the PID, `--csrf_token`, and local listening TCP ports of running
+   Antigravity `language_server` processes.
+2. Reads `~/.config/Antigravity/DevToolsActivePort` to find Chrome DevTools
+   Protocol (CDP) WebSocket addresses for active Electron windows.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ log = get_logger("discovery")
 
 def discover_language_servers() -> list[LanguageServerEndpoint]:
     """
-    Sistemde çalışan `language_server` süreçlerini tarar ve `--csrf_token`
-    parametresine sahip olanların PID, token ve port listesini döndürür.
+    Scans running `language_server` processes on the system and returns the PID,
+    token, and port list for those carrying `--csrf_token`.
     """
     endpoints: list[LanguageServerEndpoint] = []
     try:
@@ -50,7 +50,7 @@ def discover_language_servers() -> list[LanguageServerEndpoint]:
     except (subprocess.SubprocessError, OSError):
         ss_out = ""
 
-    # Önce Antigravity Desktop (`--subclient_type hub`) olan süreçlere öncelik ver
+    # Prioritize Antigravity Desktop processes (--subclient_type hub) first
     lines = out.splitlines()
     lines.sort(key=lambda l: 0 if "--subclient_type hub" in l else 1)
 
@@ -86,9 +86,9 @@ def discover_language_servers() -> list[LanguageServerEndpoint]:
 
 def get_antigravity_desktop_process_info() -> dict[str, Any]:
     """
-    Sistemde çalışan ana Antigravity Desktop Electron sürecini (/proc üzerinden)
-    tespit eder ve `--remote-debugging-port` bayrağı durumunu döndürür.
-    `language_server`, `antigravity-ide`, `python` ve `--type=` alt süreçlerini dışlar.
+    Detects the main Antigravity Desktop Electron process running on the system
+    (via /proc) and returns the `--remote-debugging-port` flag status.
+    Excludes `language_server`, `antigravity-ide`, `python`, and `--type=` child processes.
     """
     proc_root = Path("/proc")
     try:
@@ -110,14 +110,14 @@ def get_antigravity_desktop_process_info() -> dict[str, Any]:
         args = [a for a in raw_cmd.decode("utf-8", errors="ignore").split("\x00") if a]
         if not args:
             continue
-        # Electron/Chromium setproctitle nedeniyle tek string gelen cmdline'ı parçala
+        # Split cmdline arriving as a single string due to Electron/Chromium setproctitle
         if len(args) == 1 and " " in args[0]:
             args = args[0].split()
 
         exe_name = Path(args[0]).name.lower()
         joined = " ".join(args)
 
-        # Sadece ana Electron uygulaması (/opt/Antigravity/antigravity vb.)
+        # Only the main Electron app (/opt/Antigravity/antigravity, etc.)
         if exe_name != "antigravity" or "antigravity-ide" in args[0].lower():
             continue
         if "language_server" in joined or "python" in exe_name:
@@ -153,9 +153,9 @@ def get_antigravity_desktop_process_info() -> dict[str, Any]:
 
 def _resolve_cdp_port_and_file() -> tuple[int | None, Path, bool]:
     """
-    Aktif CDP portunu, kullanılan port dosyasını ve dosyanın mevcut olup olmadığını
-    çözümler. `DevToolsActivePort` yoksa açık `--remote-debugging-port=N` bayrağına
-    bakar.
+    Resolves the active CDP port, the port file used, and whether the file exists.
+    Falls back to the explicit `--remote-debugging-port=N` flag if `DevToolsActivePort`
+    is unavailable.
     """
     candidates: list[Path] = [config.DEVTOOLS_PORT_FILE]
     env_active = os.environ.get("AGY_BROWSER_ACTIVE_PORT_FILE")
@@ -191,7 +191,7 @@ def _resolve_cdp_port_and_file() -> tuple[int | None, Path, bool]:
 
 
 def _fetch_cdp_targets_on_port(cdp_port: int) -> list[dict[str, Any]]:
-    """Verilen yerel CDP portundan geçerli Antigravity pencere hedeflerini listeler."""
+    """Lists valid Antigravity window targets from the given local CDP port."""
     url = f"http://127.0.0.1:{cdp_port}/json/list"
     try:
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
@@ -209,7 +209,7 @@ def _fetch_cdp_targets_on_port(cdp_port: int) -> list[dict[str, Any]]:
         ws_url = str(t.get("webSocketDebuggerUrl", ""))
         if not ws_url:
             continue
-        # Sadece gerçek Antigravity uygulama pencerelerini seç (splash data: url'lerini atla)
+        # Select only real Antigravity app windows (skip splash data: URLs)
         if page_url.startswith("http") or "Antigravity" in title:
             valid_pages.append(t)
 
@@ -218,9 +218,8 @@ def _fetch_cdp_targets_on_port(cdp_port: int) -> list[dict[str, Any]]:
 
 def discover_cdp_page_targets() -> list[dict[str, Any]]:
     """
-    `DevToolsActivePort` dosyasından (veya süreç bayrağından / `AGY_BROWSER_WS_URL`
-    ortam değişkeninden) CDP portunu okur ve Antigravity Desktop'ın açık olan
-    ana sayfa (`type == "page"`) hedeflerini döndürür.
+    Reads the CDP port from `DevToolsActivePort` (or process flag / `AGY_BROWSER_WS_URL`
+    env var) and returns open main page (`type == "page"`) targets for Antigravity Desktop.
     """
     cdp_port, _port_file, _exists = _resolve_cdp_port_and_file()
     if cdp_port is not None:
@@ -249,8 +248,8 @@ def discover_cdp_page_targets() -> list[dict[str, Any]]:
 
 def diagnose_cdp_status() -> dict[str, Any]:
     """
-    CDP erişilebilirliğini, Antigravity Desktop süreç durumunu ve olası bağlantı
-    hatalarının kesin nedenini + çözüm önerisini döndürür.
+    Returns CDP availability, Antigravity Desktop process status, and the exact
+    reason + fix hint for any potential connection errors.
     """
     proc_info = get_antigravity_desktop_process_info()
     cdp_port, port_file, port_file_exists = _resolve_cdp_port_and_file()
@@ -261,24 +260,24 @@ def diagnose_cdp_status() -> dict[str, Any]:
         fix_hint = ""
     elif not proc_info["running"]:
         reason = "antigravity_not_running"
-        fix_hint = "Antigravity Desktop çalışmıyor. Uygulamayı --remote-debugging-port=0 ile başlatın."
+        fix_hint = "Antigravity Desktop is not running. Launch the application with --remote-debugging-port=0."
     elif not proc_info["has_remote_debugging_flag"] and not port_file_exists:
         reason = "cdp_disabled_in_antigravity_2_33"
         fix_hint = (
-            "Antigravity Desktop (>= 2.33.0) --remote-debugging-port=0 olmadan başlatılmış. "
-            "'make enable-cdp' (veya ./install.sh) çalıştırıp Antigravity Desktop'ı tamamen kapatıp yeniden açın."
+            "Antigravity Desktop (>= 2.33.0) was started without --remote-debugging-port=0. "
+            "Run 'make enable-cdp' (or ./install.sh), then completely quit and reopen Antigravity Desktop."
         )
     elif cdp_port is None:
         reason = "port_file_missing"
         fix_hint = (
-            "DevToolsActivePort dosyası bulunamadı veya okunamadı. "
-            "Antigravity Desktop'ı --remote-debugging-port=0 ile başlatın."
+            "DevToolsActivePort file was not found or could not be read. "
+            "Launch Antigravity Desktop with --remote-debugging-port=0."
         )
     else:
         reason = "cdp_unreachable_or_no_pages"
         fix_hint = (
-            "CDP portu okundu ancak açık Antigravity pencere hedefi alınamadı; "
-            "uygulamayı tamamen kapatıp yeniden açmayı deneyin."
+            "CDP port was read, but no open Antigravity window target could be retrieved; "
+            "try completely quitting and reopening the application."
         )
 
     return {

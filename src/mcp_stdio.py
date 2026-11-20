@@ -1,16 +1,17 @@
 """
-Sıfır Bağımlılıklı MCP Stdio (JSON-RPC 2.0) Protokol Sunucusu (src/mcp_stdio.py)
+Zero-Dependency MCP Stdio (JSON-RPC 2.0) Protocol Server (src/mcp_stdio.py)
 
-Neden Resmi `mcp` SDK Yerine Saf Stdlib JSON-RPC Kullanıldı?
-Resmi Python `mcp` paketi sadece `stdio` konuşmak için bile arka planda
-`starlette`, `uvicorn`, `sse-starlette`, `pydantic` ve `cryptography` dahil
-28 paketi belleğe yükler (~455 ms açılış gecikmesi ve ~45 MB RAM tüketimi).
+Why Pure Stdlib JSON-RPC Instead of the Official `mcp` SDK?
+Even just for `stdio` communication, the official Python `mcp` package loads
+28 packages into memory in the background, including `starlette`, `uvicorn`,
+`sse-starlette`, `pydantic`, and `cryptography` (~455 ms startup latency and
+~45 MB RAM consumption).
 
-Bu modül yalnızca Python'un yerleşik `sys.stdin`, `sys.stdout` ve `json`
-modüllerini kullanarak MCP protokolünü doğrudan uygular:
-- Açılış süresi: ~18 ms (25 kat daha hızlı)
-- Bellek ayak izi: ~9 MB (5 kat daha hafif)
-- Harici paket bağımlılığı: 0
+This module implements the MCP protocol directly using only Python's built-in
+`sys.stdin`, `sys.stdout`, and `json` modules:
+- Startup latency: ~18 ms (25x faster)
+- Memory footprint: ~9 MB (5x lighter)
+- External package dependencies: 0
 """
 
 from __future__ import annotations
@@ -34,20 +35,20 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
     {
         "name": "get_quota_status",
         "description": (
-            "Antigravity yerel language_server üzerinden canlı AI model kota "
-            "ve kullanım durumunu (Gemini 5h/weekly, Claude/GPT, Argon) sorgular."
+            "Queries live AI model quota and usage status "
+            "(Gemini 5h/weekly, Claude/GPT, Argon) via the local Antigravity language_server."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "include_raw": {
                     "type": "boolean",
-                    "description": "True ise sunucudan gelen saf ham yanıtı da ekler.",
+                    "description": "If true, also includes the raw response from the server.",
                     "default": False,
                 },
                 "force_refresh": {
                     "type": "boolean",
-                    "description": "True ise yerel dil sunucusu önbelleğini temizleyip doğrudan buluttan anlık çeker.",
+                    "description": "If true, clears the local language server cache and fetches live quota directly from the cloud.",
                     "default": False,
                 },
             },
@@ -57,15 +58,15 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
     {
         "name": "reinject_badge",
         "description": (
-            "Antigravity Desktop penceresinin üst menü çubuğuna canlı kota "
-            "göstergesini (rozetini) anında yeniden enjekte eder ve tazeler."
+            "Immediately reinjects and refreshes the live quota indicator (badge) "
+            "in the Antigravity Desktop window title bar."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "force": {
                     "type": "boolean",
-                    "description": "Zaten rozet varsa bile zorla yeniden kurar.",
+                    "description": "Forces reinstallation even if the badge is already present.",
                     "default": True,
                 }
             },
@@ -75,8 +76,8 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
     {
         "name": "get_instance_status",
         "description": (
-            "Çalışan MCP sunucusunun PID, çoklu-örnek liderlik (Leader/Standby) "
-            "ve kilit durumu bilgilerini döndürür."
+            "Returns PID, multi-instance leadership (Leader/Standby), "
+            "and lock status information for the running MCP server."
         ),
         "inputSchema": {
             "type": "object",
@@ -87,20 +88,20 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
     {
         "name": "clean_scratch_cache",
         "description": (
-            "Antigravity Desktop'un oturumlar sırasında oluşturduğu geçici scratch "
-            "dizinlerini (~/.gemini/antigravity/brain/*/scratch/) güvenle temizler."
+            "Safely cleans temporary scratch directories "
+            "(~/.gemini/antigravity/brain/*/scratch/) created by Antigravity Desktop during sessions."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "dry_run": {
                     "type": "boolean",
-                    "description": "True ise dosyaları silmeden temizlenecek boyutu hesaplar.",
+                    "description": "If true, calculates the cleanable size without deleting files.",
                     "default": False,
                 },
                 "older_than_hours": {
                     "type": "number",
-                    "description": "Belirtilen saatten eski dosyaları temizler (0 ise tümü).",
+                    "description": "Cleans files older than the specified number of hours (0 means all).",
                     "default": 0,
                 },
             },
@@ -112,7 +113,7 @@ TOOLS_SCHEMA: list[dict[str, Any]] = [
 
 def _write_jsonrpc(payload: dict[str, Any]) -> None:
     """
-    Tek satırlık JSON-RPC mesajını `sys.stdout` akışına yazar ve anında flush eder.
+    Writes a single-line JSON-RPC message to `sys.stdout` and flushes immediately.
     """
     line = json.dumps(payload, ensure_ascii=False)
     sys.stdout.write(line + "\n")
@@ -122,7 +123,7 @@ def _write_jsonrpc(payload: dict[str, Any]) -> None:
 def _handle_tool_call(
     name: str, arguments: dict[str, Any], lock: LeaderLock
 ) -> tuple[bool, Any]:
-    """İlgili MCP aracını çalıştırır ve `(is_error, result_dict)` döndürür."""
+    """Executes the specified MCP tool and returns `(is_error, result_dict)`."""
     if name == "get_quota_status":
         include_raw = bool(arguments.get("include_raw", False))
         force_refresh = bool(arguments.get("force_refresh", False))
@@ -158,15 +159,15 @@ def _handle_tool_call(
         result = clean_scratch_cache(older_than_hours=older_than_hours, dry_run=dry_run)
         return (not result.get("ok", False), result)
 
-    return (True, {"error": f"Bilinmeyen araç: {name}"})
+    return (True, {"error": f"Unknown tool: {name}"})
 
 
 def run_stdio_server(lock: LeaderLock) -> None:
     """
-    Standart girdi (`sys.stdin`) üzerinden gelen JSON-RPC 2.0 isteklerini
-    okur ve yanıtlar. İstemci kapandığında (`EOF`) döngü temizce sonlanır.
+    Reads JSON-RPC 2.0 requests from standard input (`sys.stdin`) and sends
+    responses. Exits cleanly when the client closes (`EOF`).
     """
-    log.info("MCP Stdio sunucusu başlatıldı, istemci mesajları bekleniyor...")
+    log.info("MCP Stdio server started, waiting for client messages...")
 
     for raw_line in sys.stdin:
         line = raw_line.strip()
@@ -176,17 +177,17 @@ def run_stdio_server(lock: LeaderLock) -> None:
         try:
             msg = json.loads(line)
         except json.JSONDecodeError as exc:
-            log.warning(f"Geçersiz JSON-RPC satırı: {exc}")
+            log.warning(f"Invalid JSON-RPC line: {exc}")
             continue
 
         method = msg.get("method")
         msg_id = msg.get("id")
         params = msg.get("params") or {}
 
-        # Bildirim mesajları (id içermez, yanıt beklenmez)
+        # Notification messages (no id, no response expected)
         if msg_id is None:
             if method == "notifications/initialized":
-                log.info("MCP istemci el sıkışması (initialized) tamamlandı.")
+                log.info("MCP client handshake (initialized) completed.")
             continue
 
         if method == "initialize":
@@ -250,4 +251,4 @@ def run_stdio_server(lock: LeaderLock) -> None:
                 }
             )
 
-    log.info("MCP Stdio akışı (EOF) kapandı, sunucu sonlandırılıyor.")
+    log.info("MCP Stdio stream (EOF) closed, shutting down server.")

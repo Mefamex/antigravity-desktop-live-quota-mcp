@@ -1,11 +1,11 @@
 """
-Sıfır Bağımlılıklı Chrome DevTools Protocol (CDP) İstemcisi (src/cdp_client.py)
+Zero-Dependency Chrome DevTools Protocol (CDP) Client (src/cdp_client.py)
 
-Neden Standart Kütüphane (`socket`) Kullanıldı?
-Harici `websockets` paketi veya sanal ortam (venv) bağımlılığı olmadan, Python'un
-yalnızca yerleşik modülleriyle (`socket`, `base64`, `struct`, `urllib.parse`)
-RFC-6455 WebSocket el sıkışmasını ve çerçeve (frame) iletimini gerçekleştirir.
-Böylece Python sürümü güncellense dahi asla paket kırılması yaşanmaz.
+Why the Standard Library (`socket`) Is Used:
+Performs the RFC-6455 WebSocket handshake and frame transmission using only
+Python's built-in modules (`socket`, `base64`, `struct`, `urllib.parse`), with
+no external `websockets` package or virtual environment (venv) dependency.
+This ensures packages never break even across Python version upgrades.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import config
 
 
 def _send_ws_frame(sock: socket.socket, opcode: int, payload: bytes = b"") -> None:
-    """RFC-6455 istemci maskeli WebSocket çerçevesi (FIN=1) gönderir."""
+    """Sends an RFC-6455 client-masked WebSocket frame (FIN=1)."""
     length = len(payload)
     mask_key = os.urandom(4)
 
@@ -44,28 +44,28 @@ def _send_ws_frame(sock: socket.socket, opcode: int, payload: bytes = b"") -> No
 
 
 def _send_ws_text_frame(sock: socket.socket, text: str) -> None:
-    """RFC-6455 istemci maskeli metin çerçevesi (masked text frame) gönderir."""
+    """Sends an RFC-6455 client-masked text frame."""
     _send_ws_frame(sock, 0x01, text.encode("utf-8"))
 
 
 def _send_ws_control_frame(sock: socket.socket, opcode: int, payload: bytes = b"") -> None:
-    """RFC-6455 istemci maskeli kontrol çerçevesi (ör. Pong) gönderir."""
+    """Sends an RFC-6455 client-masked control frame (e.g., Pong)."""
     _send_ws_frame(sock, opcode, payload)
 
 
 def _recv_exact(sock: socket.socket, n: int) -> bytes:
-    """Soketten tam olarak `n` bayt okur."""
+    """Reads exactly `n` bytes from the socket."""
     buf = bytearray()
     while len(buf) < n:
         chunk = sock.recv(n - len(buf))
         if not chunk:
-            raise ConnectionError("WebSocket bağlantısı erken kapandı.")
+            raise ConnectionError("WebSocket connection closed prematurely.")
         buf.extend(chunk)
     return bytes(buf)
 
 
 def _recv_ws_text_frame(sock: socket.socket) -> str:
-    """Sunucudan gelen (parçalı olabilen) metin çerçevesini okur ve Ping'lere Pong ile yanıt verir."""
+    """Reads a (possibly fragmented) text frame from the server and replies to Pings with Pong."""
     fragments = bytearray()
     in_text_message = False
 
@@ -88,13 +88,13 @@ def _recv_ws_text_frame(sock: socket.socket) -> str:
             payload = bytes(b ^ mask_key[i % 4] for i, b in enumerate(payload))
 
         if opcode == 0x08:  # Connection Close
-            raise ConnectionError("CDP WebSocket sunucusu bağlantıyı kapattı.")
-        if opcode == 0x09:  # Ping -> Pong gönder
+            raise ConnectionError("CDP WebSocket server closed the connection.")
+        if opcode == 0x09:  # Ping -> send Pong
             _send_ws_control_frame(sock, 0x0A, payload)
             continue
         if opcode == 0x0A:  # Pong
             continue
-        if opcode == 0x01:  # Text frame (tekil veya parçalı mesajın başlangıcı)
+        if opcode == 0x01:  # Text frame (start of single or fragmented message)
             fragments = bytearray(payload)
             in_text_message = True
             if fin:
@@ -116,8 +116,8 @@ def cdp_evaluate(
     return_by_value: bool = True,
 ) -> dict[str, Any]:
     """
-    Belirtilen CDP WebSocket URL'sine bağlanır, `Runtime.evaluate` çağrısını
-    yapar ve sonucu döndürüp soketi temizce kapatır.
+    Connects to the specified CDP WebSocket URL, invokes `Runtime.evaluate`,
+    returns the result, and cleanly closes the socket.
     """
     parsed = urlparse(ws_url)
     host = parsed.hostname or "127.0.0.1"
@@ -139,16 +139,16 @@ def cdp_evaluate(
     with socket.create_connection((host, port), timeout=config.NETWORK_TIMEOUT_SEC) as sock:
         sock.sendall(handshake.encode("ascii"))
 
-        # HTTP 101 yanıt başlığını oku
+        # Read HTTP 101 response header
         resp_header = b""
         while b"\r\n\r\n" not in resp_header:
             chunk = sock.recv(1024)
             if not chunk:
-                raise ConnectionError("CDP WebSocket el sıkışması başarısız.")
+                raise ConnectionError("CDP WebSocket handshake failed.")
             resp_header += chunk
 
         if b"101" not in resp_header.split(b"\r\n", 1)[0]:
-            raise ConnectionError("CDP WebSocket 101 Switching Protocols dönmedi.")
+            raise ConnectionError("CDP WebSocket did not return 101 Switching Protocols.")
 
         req_id = 1
         message = {

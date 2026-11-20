@@ -1,1 +1,1 @@
-"""antigravity-quota-mcp kaynak paketi."""
+"""antigravity-quota-mcp source package."""

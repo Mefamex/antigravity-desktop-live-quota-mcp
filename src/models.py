@@ -1,9 +1,9 @@
 """
-Veri Yapıları ve Şema Modelleri (src/models.py)
+Data Structures and Schema Models (src/models.py)
 
-Mefamex Mühendislik Prensibi:
-Dış/yerel servislerden gelen ham yanıtlar (`raw_response`) kesilip biçilmeden
-korunur; ayrıştırılmış (parsed) alanlar ise tip güvenli dataclass'lar ile sunulur.
+Mefamex Engineering Principle:
+Raw responses (`raw_response`) from external/local services are preserved
+untruncated; parsed fields are exposed via type-safe dataclasses.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class LanguageServerEndpoint:
-    """Yerel çalışan Antigravity language_server bağlantı bilgisi."""
+    """Connection details for a locally running Antigravity language_server."""
 
     pid: int
     csrf_token: str
@@ -23,7 +23,7 @@ class LanguageServerEndpoint:
 
 @dataclass(frozen=True)
 class BucketQuota:
-    """Tek bir kota havuzunun (örn. 5h veya weekly) durumu."""
+    """State of a single quota bucket (e.g., 5h or weekly)."""
 
     bucket_id: str
     display_name: str
@@ -36,7 +36,7 @@ class BucketQuota:
 
 @dataclass(frozen=True)
 class GroupQuota:
-    """Bir model ailesinin (örn. Gemini, Claude/GPT, Argon) kota grubu."""
+    """Quota group for a model family (e.g., Gemini, Claude/GPT, Argon)."""
 
     display_name: str
     description: str
@@ -45,7 +45,7 @@ class GroupQuota:
 
 @dataclass(frozen=True)
 class QuotaReport:
-    """Hem ayrıştırılmış özeti hem de saf ham yanıtı taşıyan kota raporu."""
+    """Quota report carrying both the parsed summary and the raw response."""
 
     ok: bool
     gemini_weekly_pct: int
@@ -58,15 +58,15 @@ class QuotaReport:
     error: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        """JSON serileştirmeye hazır sözlük döndürür."""
+        """Returns a dictionary ready for JSON serialization."""
         return asdict(self)
 
     def format_compact(self) -> str:
-        """Tek satırlık özet metin döndürür."""
+        """Returns a single-line summary string."""
         if not self.ok:
-            return f"Kota alınamadı: {self.error}"
+            return f"Quota unavailable: {self.error}"
         return (
-            f"⚡ Gemini: %{self.gemini_weekly_pct} (Haftalık) • %{self.gemini_5h_pct} (5s) | "
-            f"Claude/GPT: %{self.claude_weekly_pct} (Haftalık) • %{self.claude_5h_pct} (5s) | "
-            f"Argon: %{self.argon_weekly_pct}"
+            f"⚡ Gemini: {self.gemini_weekly_pct}% (Weekly) • {self.gemini_5h_pct}% (5h) | "
+            f"Claude/GPT: {self.claude_weekly_pct}% (Weekly) • {self.claude_5h_pct}% (5h) | "
+            f"Argon: {self.argon_weekly_pct}%"
         )

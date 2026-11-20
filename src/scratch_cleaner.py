@@ -1,14 +1,14 @@
 """
-Antigravity Scratch & Geçici Dosya Temizleyicisi (src/scratch_cleaner.py)
+Antigravity Scratch & Temporary File Cleaner (src/scratch_cleaner.py)
 
-Bu modül, Antigravity Desktop'un oturumlar sırasında oluşturduğu geçici
-`scratch` dizinlerini (~/.gemini/antigravity/brain/*/scratch/) güvenli
-ve kontrollü şekilde temizler.
+This module safely and selectively cleans temporary `scratch` directories
+(~/.gemini/antigravity/brain/*/scratch/) created by Antigravity Desktop
+during sessions.
 
-Kırmızı Çizgiler & Güvenlik Kısıtları:
-- Asla `transcript.jsonl`, planlar veya ana dizin dosyalarına DOKUNMAZ.
-- Yalnızca `scratch/` alt dizini altındaki dosyaları hedefler.
-- `dry_run=True` moduyla silme yapmadan silinecek boyutu ve dosya sayısını hesaplar.
+Red Lines & Safety Constraints:
+- NEVER touches `transcript.jsonl`, plans, or root session files.
+- Targets only files inside the `scratch/` subdirectory.
+- Supports `dry_run=True` to calculate cleanable size and file count without deleting.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ DEFAULT_BRAIN_DIR = Path.home() / ".gemini" / "antigravity" / "brain"
 
 
 def _format_bytes(bytes_count: int) -> str:
-    """Byte değerini insan tarafından okunabilir birime (KB, MB, GB) dönüştürür."""
+    """Converts a byte count into a human-readable unit (KB, MB, GB)."""
     if bytes_count < 1024:
         return f"{bytes_count} B"
     elif bytes_count < 1024 * 1024:
@@ -43,12 +43,12 @@ def clean_scratch_cache(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """
-    Antigravity brain dizinleri altındaki `scratch` klasörlerini temizler.
+    Cleans `scratch` folders under Antigravity brain directories.
 
-    :param brain_dir: Brain kök dizini (varsayılan: ~/.gemini/antigravity/brain)
-    :param older_than_hours: Belirtilen saatten daha eski dosyaları temizler (0 ise tümü).
-    :param dry_run: True ise işlem yapmadan temizlenecek dosyaları raporlar.
-    :return: Temizlenen dosya sayısı ve kazanılan alan bilgisi.
+    :param brain_dir: Brain root directory (default: ~/.gemini/antigravity/brain)
+    :param older_than_hours: Cleans files older than the specified hours (0 means all).
+    :param dry_run: If True, reports cleanable files without deleting them.
+    :return: Dictionary containing cleaned file count and freed space info.
     """
     root = Path(brain_dir) if brain_dir else DEFAULT_BRAIN_DIR
     if not root.is_dir():
@@ -58,7 +58,7 @@ def clean_scratch_cache(
             "freed_human": "0 B",
             "deleted_files_count": 0,
             "dry_run": dry_run,
-            "message": f"Dizin bulunamadı: {root}",
+            "message": f"Directory not found: {root}",
             "cleaned_dirs": [],
         }
 
@@ -70,7 +70,7 @@ def clean_scratch_cache(
     cleaned_scratch_dirs: list[str] = []
 
     try:
-        # brain altındaki UUID dizinlerini tara
+        # Scan UUID directories under brain
         for session_dir in root.iterdir():
             if not session_dir.is_dir():
                 continue
@@ -79,14 +79,14 @@ def clean_scratch_cache(
             if not scratch_dir.is_dir():
                 continue
 
-            # Sadece scratch klasörünün içeriğini güvenle tara
+            # Safely scan only the contents of the scratch folder
             dir_has_files = False
             for item in scratch_dir.rglob("*"):
                 if item.is_file():
                     dir_has_files = True
                     try:
                         stat = item.stat()
-                        # Yaş kontrolü
+                        # Age check
                         if older_than_hours > 0 and stat.st_mtime > cutoff_time:
                             continue
 
@@ -97,14 +97,14 @@ def clean_scratch_cache(
                             try:
                                 item.unlink(missing_ok=True)
                             except OSError as err:
-                                log.warning(f"Dosya silinemedi: {item} ({err})")
+                                log.warning(f"Failed to delete file: {item} ({err})")
                     except OSError:
                         continue
 
             if dir_has_files:
                 cleaned_scratch_dirs.append(str(scratch_dir))
                 if not dry_run:
-                    # Boş kalan alt klasörleri temizle
+                    # Remove empty subdirectories
                     for sub in sorted(scratch_dir.glob("**/*"), reverse=True):
                         if sub.is_dir() and not any(sub.iterdir()):
                             try:
@@ -113,7 +113,7 @@ def clean_scratch_cache(
                                 pass
 
     except Exception as exc:
-        log.error(f"Scratch temizliği sırasında hata oluştu: {exc}")
+        log.error(f"Error occurred during scratch cleanup: {exc}")
         return {
             "ok": False,
             "error": str(exc),
@@ -124,9 +124,9 @@ def clean_scratch_cache(
             "cleaned_dirs": cleaned_scratch_dirs,
         }
 
-    action_word = "Simüle edildi (dry_run)" if dry_run else "Temizlendi"
+    action_word = "Simulated (dry_run)" if dry_run else "Cleaned"
     log.info(
-        f"Scratch Temizliği: {action_word} - {total_files} dosya, {_format_bytes(total_bytes)} alan kazanıldı."
+        f"Scratch Cleanup: {action_word} - {total_files} files, {_format_bytes(total_bytes)} freed."
     )
 
     return {

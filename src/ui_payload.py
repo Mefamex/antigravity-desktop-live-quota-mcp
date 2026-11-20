@@ -1,18 +1,18 @@
 """
-Tarayıcı İçi (DOM) Canlı Kota Rozeti Yükü (src/ui_payload.py)
+In-Browser (DOM) Live Quota Badge Payload (src/ui_payload.py)
 
-Bu modül, Antigravity Desktop penceresine enjekte edilen izole JavaScript
-kodunu üretir.
+This module generates the isolated JavaScript code injected into the
+Antigravity Desktop window.
 
-Özellikler:
-1. Dinamik Kalan Süre Sayacı: Statik `/w` ve `/5h` yerine `resetTime` verisinden
-   hesaplanan kalan süreyi gösterir (örn: `1:20h`, `3.5d`).
-2. Aktif Model Vurgusu: DOM'daki seçili modeli okuyarak ilgili grubun (`⚡G`, `Ar`, `C`)
-   etiketini parlak arka plan ve ışıltı ile öne çıkarır.
-3. Kritik Eşik Nabız Uyarısı (Pulse Alert): Kota belirlenen eşiğin (`config.PULSE_ALERT_THRESHOLD_PCT`)
-   altına düştüğünde rozet etrafında hafif kırmızı nabız animasyonu devreye girer.
-4. Çift Katmanlı Çakışma Koruması (Idempotency): Eski zamanlayıcı ve gözlemcileri
-   temizler, asla çift döngü veya bellek sızıntısı yapmaz.
+Features:
+1. Dynamic Time Remaining Counter: Displays remaining time computed from
+   `resetTime` instead of static `/w` and `/5h` labels (e.g., `1:20h`, `3.5d`).
+2. Active Model Highlight: Reads the currently selected model in the DOM and
+   highlights the corresponding group tag (`⚡G`, `Ar`, `C`) with a bright background and glow.
+3. Critical Threshold Pulse Alert: Activates a subtle red pulse animation around
+   the badge when quota drops below the threshold (`config.PULSE_ALERT_THRESHOLD_PCT`).
+4. Double-Layer Collision Guard (Idempotency): Cleans up previous timers and
+   observers to prevent duplicate loops or memory leaks.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import config
 
 
 def build_check_badge_js() -> str:
-    """Rozetin DOM'da aktif olup olmadığını kontrol eden JS ifadesi."""
+    """Returns the JS expression checking whether the badge is active in the DOM."""
     return (
         f"Boolean(document.getElementById('{config.BADGE_ELEMENT_ID}') && "
         f"window.__AGY_QUOTA_STATE__ && window.__AGY_QUOTA_STATE__.active)"
@@ -30,8 +30,8 @@ def build_check_badge_js() -> str:
 
 def build_injection_js() -> str:
     """
-    Antigravity Desktop penceresine enjekte edilecek tam izole ve
-    idempotent JavaScript kodunu döndürür.
+    Returns fully isolated and idempotent JavaScript code to be injected into
+    the Antigravity Desktop window.
     """
     enable_pulse_js = "true" if config.ENABLE_PULSE_ALERT else "false"
 
@@ -49,7 +49,7 @@ def build_injection_js() -> str:
     const COLOR_MED = "{config.COLOR_MEDIUM}";
     const COLOR_LOW = "{config.COLOR_LOW}";
 
-    // Önceki bir örnek varsa zamanlayıcılarını ve gözlemcisini temizle (Idempotency)
+    // Clean up timers and observer from any previous instance (Idempotency)
     const prevHistory = window.__AGY_QUOTA_STATE__?.history;
     const history = {{ g5h: [], c5h: [] }};
     if (Array.isArray(prevHistory)) {{
@@ -104,7 +104,7 @@ def build_injection_js() -> str:
     }};
     window.__AGY_QUOTA_STATE__ = state;
 
-    // CSS Nabız Animasyonunu (Keyframes) belgenin head etiketine bir kez ekle
+    // Append CSS pulse animation (Keyframes) to document head once
     if (!document.getElementById(STYLE_ID)) {{
         const style = document.createElement("style");
         style.id = STYLE_ID;
@@ -139,7 +139,7 @@ def build_injection_js() -> str:
 
         const drop = oldest.pct - currentPct;
         if (drop <= 0) {{
-            return {{ ratePerHour: 0, etaMinutes: null, text: "Stabil (Erime hızı stabil)" }};
+            return {{ ratePerHour: 0, etaMinutes: null, text: "Stable (no depletion)" }};
         }}
 
         const ratePerHour = (drop / timeDiffMin) * 60;
@@ -149,16 +149,16 @@ def build_injection_js() -> str:
             if (etaMinutes >= 60) {{
                 const h = Math.floor(etaMinutes / 60);
                 const m = etaMinutes % 60;
-                etaText = `~${{h}}s ${{m}}dk`;
+                etaText = `~${{h}}h ${{m}}m`;
             }} else {{
-                etaText = `~${{etaMinutes}} dk`;
+                etaText = `~${{etaMinutes}}m`;
             }}
         }}
         const roundedRate = Math.round(ratePerHour * 10) / 10;
         return {{
             ratePerHour: roundedRate,
             etaMinutes: etaMinutes,
-            text: `🔥 ~%${{roundedRate}}/saat (Tahmini Tükenme: ${{etaText}})`
+            text: `🔥 ~${{roundedRate}}%/hr (Est. depletion: ${{etaText}})`
         }};
     }}
 
@@ -420,7 +420,7 @@ def build_injection_js() -> str:
         }}
 
         if (!quota) {{
-            badge.innerHTML = "<span>⚡ Kota: Bekleniyor...</span>";
+            badge.innerHTML = "<span>⚡ Quota: Loading...</span>";
             return true;
         }}
 
@@ -443,7 +443,7 @@ def build_injection_js() -> str:
         let hasClaude5h = false;
 
         let minPct = 100;
-        const tooltipLines = ["Canlı Kota Durumu (Yenilemek için tıklayın):"];
+        const tooltipLines = ["Live Quota Status (Click to refresh):"];
 
         for (const g of quota.groups || []) {{
             const gName = g.displayName || "";
@@ -482,7 +482,7 @@ def build_injection_js() -> str:
                     }}
                 }}
                 if (b.description) {{
-                    tooltipLines.push(`• ${{gName}} (${{b.window}}): %${{pct}} — ${{b.description}}`);
+                    tooltipLines.push(`• ${{gName}} (${{b.window}}): ${{pct}}% — ${{b.description}}`);
                 }}
             }}
         }}
@@ -490,7 +490,7 @@ def build_injection_js() -> str:
         const hasGemini = hasGeminiWeekly || hasGemini5h;
         const hasClaude = hasClaudeWeekly || hasClaude5h;
 
-        // Kritik kota nabız efekti kontrolü
+        // Check critical quota pulse effect
         if (ENABLE_PULSE && minPct <= PULSE_THRESHOLD) {{
             badge.style.animation = "agy-quota-pulse 2s infinite ease-in-out";
         }} else {{
@@ -498,24 +498,24 @@ def build_injection_js() -> str:
             badge.style.borderColor = "rgba(255, 255, 255, 0.12)";
         }}
 
-        // Kalan süre formatlamaları
+        // Remaining time formatting
         const gWeeklyTime = formatTimeRemaining(geminiWeeklyReset, "weekly");
         const g5hTime = formatTimeRemaining(gemini5hReset, "5h");
         const arWeeklyTime = formatTimeRemaining(argonWeeklyReset, "weekly");
         const cWeeklyTime = formatTimeRemaining(claudeWeeklyReset, "weekly");
         const c5hTime = formatTimeRemaining(claude5hReset, "5h");
 
-        // Aktif model grubu tespiti ve görsel stil ayrımı
+        // Active model group detection and visual style differentiation
         const activeGroup = detectActiveModelGroup(quota);
-        tooltipLines.push(`\\nAktif Model Grubu: ${{activeGroup || "Bilinmiyor"}}`);
+        tooltipLines.push(`\\nActive Model Group: ${{activeGroup || "Unknown"}}`);
 
         const gBurn = hasGemini5h ? calculateBurnRate("g5h", gemini5h) : null;
         const cBurn = hasClaude5h ? calculateBurnRate("c5h", claude5h) : null;
         if (gBurn) {{
-            tooltipLines.push(`• Gemini (5h) Tüketim: ${{gBurn.text}}`);
+            tooltipLines.push(`• Gemini (5h) Burn Rate: ${{gBurn.text}}`);
         }}
         if (cBurn) {{
-            tooltipLines.push(`• Claude/GPT (5h) Tüketim: ${{cBurn.text}}`);
+            tooltipLines.push(`• Claude/GPT (5h) Burn Rate: ${{cBurn.text}}`);
         }}
 
         const isGActive = activeGroup === 'gemini';
@@ -537,7 +537,7 @@ def build_injection_js() -> str:
         const timeTagStyle = "color:#e2e8f0; font-size:9.5px; font-weight:500; opacity:0.95; margin-left:1px;";
 
         function renderPct(val) {{
-            return `<span style="color:${{pickColor(val)}}; font-weight:700; font-size:12px; letter-spacing:-0.2px;">%${{val}}</span>`;
+            return `<span style="color:${{pickColor(val)}}; font-weight:700; font-size:12px; letter-spacing:-0.2px;">${{val}}%</span>`;
         }}
 
         const segments = [];
@@ -574,7 +574,7 @@ def build_injection_js() -> str:
 
         badge.innerHTML = segments.length > 0
             ? segments.join('<span style="color:#6b7280; margin:0 1px;">|</span>')
-            : "<span>⚡ Kota: Veri Yok</span>";
+            : "<span>⚡ Quota: No Data</span>";
         badge.title = tooltipLines.join("\\n");
         return true;
     }}
@@ -589,7 +589,7 @@ def build_injection_js() -> str:
         renderBadge(state.lastQuota);
     }}
 
-    // React DOM değişimlerinde rozet silinirse bir sonraki çizim karesinde yeniden ekle
+    // Reattach badge on the next animation frame if removed by React DOM mutations
     const observer = new MutationObserver(() => {{
         if (state.reattachFrameId !== null) return;
         state.reattachFrameId = requestAnimationFrame(() => {{
@@ -602,11 +602,11 @@ def build_injection_js() -> str:
     observer.observe(document.body, {{ childList: true, subtree: true }});
     state.observer = observer;
 
-    // İlk yükleme ve periyodik döngüler
+    // Initial load and periodic loops
     updateCycle();
-    // 1. Ağ üzerinden kota çekme döngüsü (varsayılan: 30 sn)
+    // 1. Network quota fetch loop (interval: POLL_MS)
     state.fetchTimerId = setInterval(updateCycle, POLL_MS);
-    // 2. Kalan süre geri sayımı ve aktif model kontrolü için hafif yerel render döngüsü (5 sn)
+    // 2. Lightweight local render loop for countdown and active model check (5s)
     state.renderTimerId = setInterval(() => {{
         if (state.lastQuota) {{
             renderBadge(state.lastQuota);

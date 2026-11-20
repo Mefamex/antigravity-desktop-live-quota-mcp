@@ -1,26 +1,26 @@
 """
-Çoklu Örnek Çakışma Önleyici & Lider Seçimi Modülü (src/lock.py)
+Multi-Instance Conflict Prevention & Leader Election Module (src/lock.py)
 
 Problem:
-Kullanıcı aynı anda hem Antigravity Desktop, hem `agy` CLI, hem de Antigravity IDE
-açtığında (veya birden fazla pencere/oturum başlattığında), her istemci kendi
-`antigravity-quota-mcp` alt sürecini (child process) başlatır.
+When a user runs Antigravity Desktop, `agy` CLI, and Antigravity IDE simultaneously
+(or opens multiple windows/sessions), each client spawns its own
+`antigravity-quota-mcp` child process.
 
-Eğer 2 farklı MCP süreci aynı anda CDP (Chrome DevTools Protocol) üzerinden
-pencereye bağlanıp DOM'u güncellemeye çalışırsa yarış durumu (race condition)
-ve gereksiz soket trafiği oluşur. Ancak ikinci sürecin tamamen kapanması da
-istemcinin "MCP sunucusu çöktü" hatası vermesine yol açar.
+If two different MCP processes connect to the window via CDP (Chrome DevTools
+Protocol) at the same time and attempt to mutate the DOM, a race condition and
+unnecessary socket traffic occur. However, exiting the second process outright
+causes the client to report an "MCP server crashed" error.
 
-Çözüm (Linux Kernel `fcntl.flock` Lider Seçimi):
-1. Her MCP süreci kendi `stdio` (JSON-RPC) kanalını açık tutar; böylece tüm
-   istemcilerde MCP araçları (`get_quota_status` vb.) kesintisiz çalışır.
-2. UI Enjektörü ise `LOCK_FILE_PATH` üzerinde bloklamayan çekirdek kilidi
-   (`fcntl.LOCK_EX | fcntl.LOCK_NB`) talep eder:
-   - Kilidi alan ilk süreç **LİDER (Leader)** olur ve UI izleme görevini yürütür.
-   - İkinci/üçüncü süreçler kilidin dolu olduğunu görür, **YEDEK (Standby)** modda
-     bekler ve CDP portuna dokunmaz.
-   - Lider süreç kapanırsa (hatta `SIGKILL` ile ölse bile), Linux çekirdeği kilidi
-     anında serbest bırakır ve yedekteki süreç otomatik olarak Liderliği devralır.
+Solution (Linux Kernel `fcntl.flock` Leader Election):
+1. Every MCP process keeps its own `stdio` (JSON-RPC) channel open so MCP tools
+   (`get_quota_status`, etc.) work uninterrupted across all clients.
+2. The UI Injector requests a non-blocking kernel lock on `LOCK_FILE_PATH`
+   (`fcntl.LOCK_EX | fcntl.LOCK_NB`):
+   - The first process to acquire the lock becomes the **Leader** and runs the UI watcher.
+   - Second/third processes see the lock is held, stay in **Standby** mode, and
+     do not touch the CDP port.
+   - If the Leader process exits (even via `SIGKILL`), the Linux kernel immediately
+     releases the lock and a standby process automatically takes over leadership.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ log = get_logger("lock")
 
 
 class LeaderLock:
-    """Çekirdek düzeyinde (`fcntl.flock`) tekil UI liderliği yöneticisi."""
+    """Kernel-level (`fcntl.flock`) singleton UI leadership manager."""
 
     def __init__(self, lock_path: Path = config.LOCK_FILE_PATH) -> None:
         self.lock_path: Path = lock_path
@@ -46,13 +46,13 @@ class LeaderLock:
 
     @property
     def is_leader(self) -> bool:
-        """Bu sürecin aktif UI lideri olup olmadığını döndürür."""
+        """Returns whether this process is the active UI leader."""
         return self._is_leader
 
     def try_acquire(self) -> bool:
         """
-        Bloklamadan liderlik kilidini almaya çalışır.
-        Zaten liderse True döner. Başka bir süreç liderse False döner.
+        Attempts to acquire the leadership lock without blocking.
+        Returns True if already leader or acquired. Returns False if another process holds it.
         """
         if self._is_leader and self._fp is not None:
             return True
@@ -64,14 +64,14 @@ class LeaderLock:
 
             fcntl.flock(self._fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
 
-            # Kilidi aldık; dosya içine kendi PID bilgimizi yazalım
+            # Lock acquired; write our PID into the lock file
             self._fp.seek(0)
             self._fp.truncate()
             self._fp.write(f"{os.getpid()}\n")
             self._fp.flush()
 
             self._is_leader = True
-            log.info(f"UI Liderlik kilidi alındı ({self.lock_path})")
+            log.info(f"UI leadership lock acquired ({self.lock_path})")
             return True
 
         except (BlockingIOError, OSError):
@@ -79,7 +79,7 @@ class LeaderLock:
             return False
 
     def read_holder_pid(self) -> int | None:
-        """Şu an kilidi elinde tutan lider sürecin PID numarasını okur."""
+        """Reads the PID of the leader process currently holding the lock."""
         try:
             if self.lock_path.exists():
                 content = self.lock_path.read_text(encoding="utf-8").strip()
@@ -90,12 +90,12 @@ class LeaderLock:
         return None
 
     def release(self) -> None:
-        """Liderlik kilidini güvenli biçimde serbest bırakır."""
+        """Safely releases the leadership lock."""
         if self._fp is not None:
             try:
                 if self._is_leader:
                     fcntl.flock(self._fp.fileno(), fcntl.LOCK_UN)
-                    log.info("UI Liderlik kilidi serbest bırakıldı.")
+                    log.info("UI leadership lock released.")
             except OSError:
                 pass
             finally:
