@@ -37,11 +37,38 @@ update: clean ## Bağımlılık gerektirmez; bytecode temizler ve testleri doğr
 	@python3 -B tests/verify_all.py
 	@echo "==> Güncelleme ve doğrulama tamamlandı."
 
+define _REMOVE_MCP_PY
+import json
+import os
+import sys
+
+config_path = os.path.expanduser("~/.gemini/config/mcp_config.json")
+if os.path.exists(config_path):
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            servers = data.get("mcpServers")
+            if isinstance(servers, dict):
+                removed = False
+                for key in ("antigravity-desktop-live-quota-mcp", "antigravity-quota"):
+                    if key in servers:
+                        servers.pop(key, None)
+                        removed = True
+                if removed:
+                    with open(config_path, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=2, ensure_ascii=False)
+                        f.write("\n")
+    except Exception as exc:
+        print(f"[UYARI] {config_path} güncellenemedi: {exc}", file=sys.stderr)
+endef
+export _REMOVE_MCP_PY
+
 remove: ## MCP kaydını mcp_config.json içinden ve yönetilen launcher dosyalarından temizler
 	@echo "==> MCP kaydı temizleniyor..."
-	@python3 -B -c "import json, os; p=os.path.expanduser('~/.gemini/config/mcp_config.json'); (lambda f: [f and [d.setdefault('mcpServers',{}).pop('antigravity-desktop-live-quota-mcp',None), d.setdefault('mcpServers',{}).pop('antigravity-quota',None), open(p,'w').write(json.dumps(d,indent=2))] for d in [json.load(open(p))]])(os.path.exists(p))" || true
+	@python3 -B -c "$$_REMOVE_MCP_PY" || true
 	@for f in "$(HOME)/.local/share/applications/antigravity.desktop" "$(HOME)/.local/bin/antigravity"; do \
-		if [ -f "$$f" ] && grep -q "managed-by: antigravity-desktop-live-quota-mcp" "$$f" 2>/dev/null; then \
+		if [ -f "$$f" ] && head -c 1024 "$$f" 2>/dev/null | tr -d '\0' | grep -qF "managed-by: antigravity-desktop-live-quota-mcp"; then \
 			rm -f "$$f" && echo "[INFO] Temizlendi -> $$f"; \
 		fi; \
 	done

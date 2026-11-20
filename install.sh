@@ -38,6 +38,61 @@ for arg in "$@"; do
     esac
 done
 
+resolve_system_antigravity_bin() {
+    local user_bin_dir="${1:-${HOME}/.local/bin}"
+    user_bin_dir="${user_bin_dir%/}"
+    local user_bin="${user_bin_dir}/antigravity"
+    local user_bin_dir_canon user_bin_canon
+    user_bin_dir_canon="$(readlink -m "${user_bin_dir}" 2>/dev/null || readlink -f "${user_bin_dir}" 2>/dev/null || printf '%s' "${user_bin_dir}")"
+    user_bin_canon="$(readlink -m "${user_bin}" 2>/dev/null || readlink -f "${user_bin}" 2>/dev/null || printf '%s' "${user_bin}")"
+
+    local -a candidates=()
+    local -a path_dirs=()
+    local dir dir_canon cand cand_canon header
+
+    IFS=':' read -ra path_dirs <<< "${PATH:-}"
+    if [[ ${#path_dirs[@]} -gt 0 ]]; then
+        for dir in "${path_dirs[@]}"; do
+            [[ -n "${dir}" ]] || continue
+            dir="${dir%/}"
+            [[ -n "${dir}" ]] || dir="/"
+            if [[ "${dir}" == "${user_bin_dir}" ]]; then
+                continue
+            fi
+            dir_canon="$(readlink -m "${dir}" 2>/dev/null || readlink -f "${dir}" 2>/dev/null || printf '%s' "${dir}")"
+            if [[ "${dir_canon}" == "${user_bin_dir_canon}" ]]; then
+                continue
+            fi
+            candidates+=("${dir%/}/antigravity")
+        done
+    fi
+
+    candidates+=(
+        "/usr/bin/antigravity"
+        "/usr/local/bin/antigravity"
+        "/opt/Antigravity/antigravity"
+    )
+
+    for cand in "${candidates[@]}"; do
+        [[ -f "${cand}" && -x "${cand}" ]] || continue
+        if [[ "${cand}" == "${user_bin}" ]]; then
+            continue
+        fi
+        cand_canon="$(readlink -m "${cand}" 2>/dev/null || readlink -f "${cand}" 2>/dev/null || printf '%s' "${cand}")"
+        if [[ "${cand_canon}" == "${user_bin_canon}" ]]; then
+            continue
+        fi
+        header="$({ head -c 1024 "${cand}" | tr -d '\0'; } 2>/dev/null || true)"
+        if [[ "${header}" == *"${MARKER}"* ]]; then
+            continue
+        fi
+        printf '%s\n' "${cand}"
+        return 0
+    done
+
+    return 1
+}
+
 setup_cdp_launcher() {
     echo "--------------------------------------------------------------------"
     echo "🔧 Antigravity Desktop (>= 2.33.0) kalıcı CDP launcher ayarlanıyor (sudo gerekmez)..."
@@ -47,6 +102,10 @@ setup_cdp_launcher() {
     local user_desktop="${user_app_dir}/antigravity.desktop"
     local user_bin_dir="${HOME}/.local/bin"
     local user_bin="${user_bin_dir}/antigravity"
+    local real_bin=""
+    if ! real_bin="$(resolve_system_antigravity_bin "${user_bin_dir}")"; then
+        real_bin=""
+    fi
 
     # 1. XDG Desktop Entry override (~/.local/share/applications/antigravity.desktop)
     if [[ -f "${sys_desktop}" ]]; then
@@ -72,11 +131,13 @@ with open(src_path, "r", encoding="utf-8") as f:
 out_lines = [marker_line]
 for line in lines:
     if line.startswith("Exec=") and "--remote-debugging-port" not in line:
-        # /usr/bin/antigravity veya antigravity sonrası --remote-debugging-port=0 ekle
-        if "/usr/bin/antigravity" in line:
-            line = line.replace("/usr/bin/antigravity", "/usr/bin/antigravity --remote-debugging-port=0", 1)
-        else:
-            line = re.sub(r"^Exec=(\S+)", r"Exec=\1 --remote-debugging-port=0", line)
+        # Tırnaklı veya tırnaksız komut token'ı sonrası --remote-debugging-port=0 ekle
+        line = re.sub(
+            r'^Exec=\s*("[^"]+"|\S+)',
+            r"Exec=\1 --remote-debugging-port=0",
+            line,
+            count=1,
+        )
     out_lines.append(line)
 
 with open(dst_path, "w", encoding="utf-8") as f:
@@ -103,24 +164,37 @@ PYEOF
     fi
 
     # 2. Terminal CLI wrapper (~/.local/bin/antigravity)
-    mkdir -p "${user_bin_dir}"
-    if [[ -e "${user_bin}" ]] && ! grep -q "${MARKER}" "${user_bin}" 2>/dev/null; then
+    local user_bin_header=""
+    local user_bin_managed=0
+    if [[ -e "${user_bin}" || -L "${user_bin}" ]]; then
+        user_bin_header="$({ head -c 1024 "${user_bin}" | tr -d '\0'; } 2>/dev/null || true)"
+        if [[ "${user_bin_header}" == *"${MARKER}"* ]]; then
+            user_bin_managed=1
+        fi
+    fi
+
+    if [[ ( -e "${user_bin}" || -L "${user_bin}" ) && "${user_bin_managed}" -eq 0 ]]; then
         echo "[UYARI] Mevcut ${user_bin} dosyamız bizim işaretçimizi taşımıyor, dokunulmadı." >&2
+    elif [[ -z "${real_bin}" ]]; then
+        echo "[UYARI] Sistem genelinde çalıştırılabilir Antigravity ikili dosyası bulunamadı; ${user_bin} sarmalayıcısı oluşturulmadı." >&2
     else
-        cat > "${user_bin}" <<'EOF'
+        mkdir -p "${user_bin_dir}"
+        local quoted_real_bin
+        quoted_real_bin="$(printf '%q' "${real_bin}")"
+        cat > "${user_bin}" <<EOF
 #!/usr/bin/env bash
-# managed-by: antigravity-desktop-live-quota-mcp
-for arg in "$@"; do
-    case "$arg" in
+# ${MARKER}
+for arg in "\$@"; do
+    case "\$arg" in
         --remote-debugging-port|--remote-debugging-port=*)
-            exec /usr/bin/antigravity "$@"
+            exec ${quoted_real_bin} "\$@"
             ;;
     esac
 done
-exec /usr/bin/antigravity --remote-debugging-port=0 "$@"
+exec ${quoted_real_bin} --remote-debugging-port=0 "\$@"
 EOF
         chmod +x "${user_bin}"
-        echo "[BAŞARILI] Terminal sarmalayıcısı hazır -> ${user_bin}"
+        echo "[BAŞARILI] Terminal sarmalayıcısı hazır -> ${user_bin} (hedef: ${real_bin})"
     fi
 }
 
