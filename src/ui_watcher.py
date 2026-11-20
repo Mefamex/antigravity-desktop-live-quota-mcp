@@ -114,9 +114,11 @@ class UIWatcherThread(threading.Thread):
                 if not self._was_leader:
                     log.info("Bu süreç UI Lideri olarak aktifleşti.")
                     self._was_leader = True
+                cdp_active = False
                 try:
                     res = inject_into_all_windows(force=False)
-                    if res.get("ok"):
+                    cdp_active = bool(res.get("ok"))
+                    if cdp_active:
                         self._cdp_warning_logged = False
                     elif (
                         res.get("diagnostics", {}).get("reason") == "cdp_disabled_in_antigravity_2_33"
@@ -127,13 +129,15 @@ class UIWatcherThread(threading.Thread):
                 except Exception as exc:
                     log.debug(f"UI kontrol döngüsü hatası: {exc}")
 
-                # Lider iken masaüstü bildirimlerini kontrol et (hız sınırlamalı)
+                # Lider iken masaüstü bildirimlerini kontrol et (hız sınırlamalı);
+                # UI rozeti aktifken (`cdp_active=True`) yerel önbellek sayfa içinde tazelenir,
+                # bu sayede mükerrer bulut RPC çağrılarından kaçınılır.
                 if config.ENABLE_DESKTOP_NOTIFICATIONS:
                     now = time.monotonic()
                     if (now - self._last_notify_check_ts) >= config.WATCHER_NOTIFY_INTERVAL_SEC:
                         self._last_notify_check_ts = now
                         try:
-                            live_quota = fetch_live_quota(force_refresh=True)
+                            live_quota = fetch_live_quota(force_refresh=(not cdp_active))
                             if live_quota.ok:
                                 self._notifier.check_and_notify(live_quota, is_leader=True)
                         except Exception as exc:

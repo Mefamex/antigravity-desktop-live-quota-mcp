@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import ssl
+import threading
 import urllib.request
 from typing import Any
 
@@ -22,30 +23,45 @@ log = get_logger("quota")
 
 RPC_PATH = "/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary"
 
+_CACHE_LOCK = threading.Lock()
+_CACHED_ENDPOINT: tuple[int, int, str, str] | None = None
 
-def _call_rpc_endpoint(port: int, csrf_token: str, force_refresh: bool = False) -> dict[str, Any] | None:
-    """Belirtilen yerel porta HTTP veya HTTPS üzerinden ConnectRPC isteği gönderir."""
+
+def _call_rpc_single(
+    port: int,
+    scheme: str,
+    csrf_token: str,
+    force_refresh: bool = False,
+) -> dict[str, Any] | None:
+    """Belirtilen yerel porta tek bir HTTP veya HTTPS ConnectRPC isteği gönderir."""
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
         "X-Codeium-Csrf-Token": csrf_token,
     }
     payload = json.dumps({"forceRefresh": True}).encode("utf-8") if force_refresh else b"{}"
+    url = f"{scheme}://127.0.0.1:{port}{RPC_PATH}"
+    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    ctx = ssl._create_unverified_context() if scheme == "https" else None
+    try:
+        with urllib.request.urlopen(
+            req, timeout=config.NETWORK_TIMEOUT_SEC, context=ctx
+        ) as resp:
+            raw_bytes = resp.read()
+            data = json.loads(raw_bytes.decode("utf-8", errors="ignore"))
+            if isinstance(data, dict) and "response" in data:
+                return data
+    except Exception:
+        pass
+    return None
 
+
+def _call_rpc_endpoint(port: int, csrf_token: str, force_refresh: bool = False) -> dict[str, Any] | None:
+    """Belirtilen yerel porta HTTP veya HTTPS üzerinden ConnectRPC isteği gönderir."""
     for scheme in ("http", "https"):
-        url = f"{scheme}://127.0.0.1:{port}{RPC_PATH}"
-        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        ctx = ssl._create_unverified_context() if scheme == "https" else None
-        try:
-            with urllib.request.urlopen(
-                req, timeout=config.NETWORK_TIMEOUT_SEC, context=ctx
-            ) as resp:
-                raw_bytes = resp.read()
-                data = json.loads(raw_bytes.decode("utf-8", errors="ignore"))
-                if isinstance(data, dict) and "response" in data:
-                    return data
-        except Exception:
-            continue
+        data = _call_rpc_single(port, scheme, csrf_token, force_refresh=force_refresh)
+        if data is not None:
+            return data
 
     return None
 
@@ -118,9 +134,24 @@ def _parse_quota_response(raw_data: dict[str, Any]) -> QuotaReport:
 
 def fetch_live_quota(force_refresh: bool = False) -> QuotaReport:
     """
-    Aktif language_server süreçlerini keşfeder ve ilk başarılı olanından
+    Önbelleğe alınmış çalışan uç noktayı (varsa) kullanır; başarısız olursa
+    aktif language_server süreçlerini keşfeder ve ilk başarılı olanından
     canlı kota raporunu döndürür.
     """
+    global _CACHED_ENDPOINT
+
+    with _CACHE_LOCK:
+        cached = _CACHED_ENDPOINT
+
+    if cached is not None:
+        _, port, scheme, token = cached
+        raw_data = _call_rpc_single(port, scheme, token, force_refresh=force_refresh)
+        if raw_data is not None:
+            return _parse_quota_response(raw_data)
+        with _CACHE_LOCK:
+            if _CACHED_ENDPOINT == cached:
+                _CACHED_ENDPOINT = None
+
     endpoints = discover_language_servers()
     if not endpoints:
         return QuotaReport(
@@ -135,9 +166,14 @@ def fetch_live_quota(force_refresh: bool = False) -> QuotaReport:
 
     for ep in endpoints:
         for port in ep.ports:
-            raw_data = _call_rpc_endpoint(port, ep.csrf_token, force_refresh=force_refresh)
-            if raw_data is not None:
-                return _parse_quota_response(raw_data)
+            for scheme in ("http", "https"):
+                raw_data = _call_rpc_single(
+                    port, scheme, ep.csrf_token, force_refresh=force_refresh
+                )
+                if raw_data is not None:
+                    with _CACHE_LOCK:
+                        _CACHED_ENDPOINT = (ep.pid, port, scheme, ep.csrf_token)
+                    return _parse_quota_response(raw_data)
 
     return QuotaReport(
         ok=False,

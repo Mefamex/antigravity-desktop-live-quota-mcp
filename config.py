@@ -55,13 +55,13 @@ LOCK_FILE_PATH: Path = Path(_runtime_dir) / "antigravity-desktop-live-quota.lock
 # 3. ZAMANLAYICI VE YOKLAMA (POLLING) AYARLARI
 # ============================================================================
 # Pencere içindeki JS döngüsünün yerel language_server'dan kota çekme sıklığı (ms)
-BROWSER_FETCH_INTERVAL_MS: int = _env_int("AGY_BROWSER_FETCH_MS", 30_000)
+BROWSER_FETCH_INTERVAL_MS: int = _env_int("AGY_BROWSER_FETCH_MS", 60_000)
 
 # Lider MCP sürecinin pencereyi (Ctrl+R veya yeni pencere açılmasına karşı) kontrol sıklığı (sn)
 WATCHER_CHECK_INTERVAL_SEC: int = _env_int("AGY_WATCHER_CHECK_SEC", 8)
 
 # Lider sürecin masaüstü bildirimleri için buluttan kota sorgulama sıklığı (sn)
-WATCHER_NOTIFY_INTERVAL_SEC: int = _env_int("AGY_WATCHER_NOTIFY_SEC", 60)
+WATCHER_NOTIFY_INTERVAL_SEC: int = _env_int("AGY_WATCHER_NOTIFY_SEC", 120)
 
 # Yerel HTTP ve WebSocket bağlantıları için zaman aşımı süresi (sn)
 NETWORK_TIMEOUT_SEC: float = float(_env_int("AGY_NETWORK_TIMEOUT_SEC", 2))
