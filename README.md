@@ -61,12 +61,14 @@ Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan ca
 
 * **5 Kota Türünün Tam Entegrasyonu:** `⚡G` (Gemini Flash/Pro/Neon/Hydrogen/Orchestrator 5h ve haftalık), `Ar` (Gemini 4 Argon haftalık) ve `C` (Claude/GPT 5h ve haftalık) kotalarını eşzamanlı izler.
 * **Dinamik Kalan Süre Sayacı:** Statik etiketler yerine `resetTime` verisinden canlı hesaplanan geri sayımları gösterir (`0:50h`, `6.8d`, `7.0d`). Yerel DOM döngüsü (5 sn) ağ trafiği üretmeden süreyi akıtır.
-* **Aktif Model Vurgusu:** Sohbet oturumunda kullanılan modele göre (`Neon`, `Hydrogen`, `Orchestrator`, `Flash`, `Pro`, `Argon`, `Claude`, `GPT`) ilgili etiketi (`⚡G:`, `Ar:`, `C:`) parlak arka plan kapsülü ve hafif ışıltı ile görsel olarak öne çıkarır.
-* **Anında Zorlamalı Bulut Yenilemesi ve Yarış Koruması:** Rozete tıklandığında `{ forceRefresh: true }` parametresi gönderilerek yerel dil sunucusunun önbelleği (`cache.ClearAndRefresh`) temizlenir; monoton sıralama (`fetchSeq`) ile eski yanıtların taze veriyi ezmesi önlenir.
+* **Dinamik Aktif Model Vurgusu:** Sohbet oturumunda kullanılan modeli API'nin `quota.groups[].description` ve `displayName` alanlarına karşı dinamik olarak eşleştirir (yeni çıkacak modellerin otomatik tanınması için anahtar kelime yedeklemesiyle birlikte) ve ilgili etiketi (`⚡G:`, `Ar:`, `C:`) parlak arka plan kapsülü ve hafif ışıltı ile görsel olarak öne çıkarır.
+* **Anında Zorlamalı Yenileme, Bulut RPC Kısıtlaması ve Uç Nokta Önbelleği:** Rozete tıklandığında `{ forceRefresh: true }` parametresi gönderilerek yerel dil sunucusunun önbelleği tazelenir; monoton sıralama (`fetchSeq`) eski yanıtların taze veriyi ezmesini önler. Arka plan sorguları bulut hız sınırlarına (rate-limit) karşı optimize edilmiştir (`60000 ms` tarayıcı döngüsü, `120 sn` bildirim denetimi ve arayüz rozeti aktifken çift bulut yenilemesinden kaçınma) ve çalışan `language_server` uç noktası (`_CACHED_ENDPOINT`) önbelleklenerek sonraki yerel çağrılar gecikmesiz yanıtlanır.
+* **Tam RFC-6455 WebSocket & Debounce Edilmiş DOM Gözlemcisi:** Harici bağımlılık olmadan parçalı (fragmented) WebSocket çerçevelerini (`0x01`/`0x00`) yeniden birleştirir ve sunucu `Ping`/`Pong` (`0x09`/`0x0A`) ile `Close` (`0x08`) kontrol çerçevelerini tam uyumlu işler. Pencere içi `MutationObserver`, `requestAnimationFrame` ile debounce edilerek React DOM mutasyonlarında gereksiz yeniden enjeksiyon yükünü ortadan kaldırır.
 * **Çift Katmanlı Çakışma Koruması:** Linux çekirdek kilidi (`fcntl.flock`) ile birden fazla pencere/CLI açıldığında tek bir `LEADER` belirlenir. Diğer süreçler `STANDBY` modunda bekler; lider kapanırsa otomatik devir (failover) gerçekleşir.
 * **Adaptif ve Responsive Stil:** HiDPI ve fractional scaling ekranlar için `clamp(6px, 1vw, 12px)` ve `flex-shrink: 0` CSS kuralları ile pencere genişliğine uyum sağlar.
-* **Tüketim Hızı & Erime Tahmini (Burn-Rate Analytics):** Dakika başına kota düşüş hızını (`% / saat`) hesaplayarak 5 saatlik kota için tahmini tükenme süresini (`ETA: ~X dk`) tooltip üzerinde anlık modeller.
-* **Kritik Kota & Yenilenme Masaüstü Bildirimleri:** Kota kritik eşiğe (`<= %15`) düştüğünde veya sayaç sıfırlanıp yenilendiğinde Linux masaüstüne (`notify-send`) 30 dk anti-spam korumalı yerel bildirim gönderir.
+* **Kova Bazlı Tüketim Hızı & Sıfırlama İzolasyonu (Burn-Rate Analytics):** 5 saatlik Gemini (`g5h`) ve Claude/GPT (`c5h`) kotaları için ayrı geçmiş tamponları tutar; kota `> +%5` oranında dolduğunda ilgili kovanın geçmişini otomatik sıfırlar ve rozet ipucunda saatlik tüketim hızı ile tahmini tükenme süresini (`🔥 ~X%/hr (Est. depletion: ~Ym)`) gösterir.
+* **Kritik Kota & Yenilenme Masaüstü Bildirimleri:** Kota kritik eşiğe (`<= %15`) düştüğünde veya sayaç sıfırlanıp `%90+` seviyesine yenilendiğinde Linux masaüstüne (`notify-send`) 30 dk anti-spam korumalı yerel bildirim gönderir.
+* **Taşınabilir Kurulum & İngilizce Çekirdek Standardizasyonu (`v1.3.0`):** `install.sh`, sistemdeki gerçek `antigravity` ikili dosyasını `$PATH` ve standart yollar üzerinden dinamik olarak çözer (yönetilen sarmalayıcıyı atlayarak özyineleme döngüsünü önler). Tüm kaynak kod, loglar, testler ve arayüz rozet metinleri (`99%`, `Live Quota Status`) İngilizce olarak standartlaştırılmıştır.
 * **Tek Tıkla Scratch Temizliği:** Antigravity brain dizininde biriken geçici oturum kalıntılarını güvenle temizleyen `clean_scratch_cache` aracı ve `make clean-scratch` komutu.
 
 ---
@@ -84,8 +86,8 @@ Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan ca
 
 ### 1. Depoyu Klonlayın ve Dizine Girin
 ```bash
-# Depoyu yerel diskinize indirin
-cd /mnt/DiskD/SOFTWARE/Github-repos/antigravity-desktop-live-quota-mcp
+git clone https://github.com/Mefamex/antigravity-desktop-live-quota-mcp.git
+cd antigravity-desktop-live-quota-mcp
 ```
 
 ### 2. Tek Komutla Otomatik Kurun
@@ -94,7 +96,7 @@ cd /mnt/DiskD/SOFTWARE/Github-repos/antigravity-desktop-live-quota-mcp
 make install
 ```
 
-> **Antigravity Desktop ≥ 2.33.0 Notu:** Google, Antigravity `2.33.0` sürümünden itibaren varsayılan `--remote-debugging-port=0` anahtarını kapattı. `make install` (veya tek başına `make enable-cdp`) komutu `sudo` gerektirmeden `~/.local/share/applications/antigravity.desktop` ve `~/.local/bin/antigravity` dosyalarını güncellemelerden etkilenmeyecek şekilde ayarlar. İlk kurulum sonrası çalışan Antigravity Desktop penceresini bir kez tamamen kapatıp yeniden açmanız yeterlidir.
+> **Antigravity Desktop ≥ 2.33.0 Notu:** Google, Antigravity `2.33.0` sürümünden itibaren varsayılan `--remote-debugging-port=0` anahtarını kapattı. `make install` (veya tek başına `make enable-cdp`) komutu `sudo` gerektirmeden `~/.local/share/applications/antigravity.desktop` ve `~/.local/bin/antigravity` dosyalarını güncellemelerden etkilenmeyecek şekilde ayarlar (sistemdeki gerçek `antigravity` ikili dosyasını `$PATH` üzerinden dinamik olarak çözer). İlk kurulum sonrası çalışan Antigravity Desktop penceresini bir kez tamamen kapatıp yeniden açmanız yeterlidir. Yerel CDP hata ayıklama portunu açmak istemiyorsanız yalnızca MCP kota araçları ve masaüstü bildirimleri için `./install.sh --no-cdp-launcher` kullanabilirsiniz (bkz. Bölüm 8).
 
 ### 3. Manuel Kurulum Alternatifi
 Dilerseniz `~/.gemini/config/mcp_config.json` dosyası içerisindeki `"mcpServers"` bloğuna doğrudan şu girdiyi ekleyebilirsiniz:
@@ -104,7 +106,7 @@ Dilerseniz `~/.gemini/config/mcp_config.json` dosyası içerisindeki `"mcpServer
   "command": "python3",
   "args": [
     "-B",
-    "/mnt/DiskD/SOFTWARE/Github-repos/antigravity-desktop-live-quota-mcp/main.py"
+    "/path/to/antigravity-desktop-live-quota-mcp/main.py"
   ],
   "disabled": false
 }
@@ -123,9 +125,10 @@ Hassas veriler veya geçici ayarlar kod değiştirilmeden ortam değişkenleri �
 
 | Değişken | Varsayılan | Açıklama |
 | :--- | :--- | :--- |
-| `AGY_BROWSER_FETCH_MS` | `30000` | Tarayıcı JS döngüsünün yerel kota sorgulama periyodu (milisaniye) |
+| `AGY_BROWSER_FETCH_MS` | `60000` | Tarayıcı JS döngüsünün yerel kota sorgulama periyodu (milisaniye) |
 | `AGY_WATCHER_CHECK_SEC` | `8` | Lider sürecin pencere varlığını ve rozet durumunu denetleme sıklığı (saniye) |
-| `AGY_WATCHER_NOTIFY_SEC` | `60` | Lider sürecin masaüstü bildirimleri için buluttan kota kontrol sıklığı (saniye) |
+| `AGY_WATCHER_NOTIFY_SEC` | `120` | Lider sürecin masaüstü bildirimleri için kota kontrol sıklığı (saniye) |
+| `AGY_UI_INJECTION_ENABLED` | `true` | Arka plan izleyici iş parçacığını (`UIWatcherThread`) kontrol eder; `false` yapılırsa hem otomatik arayüz rozeti enjeksiyonu hem de arka plan masaüstü bildirimleri devre dışı kalır, yalnızca isteğe bağlı MCP stdio araçları çalışır |
 | `AGY_THRESHOLD_HIGH` | `50` | Yeşil gösterge eşik yüzdesi (`> %50`) |
 | `AGY_THRESHOLD_LOW` | `20` | Sarı gösterge eşik yüzdesi (`> %20`, altı kırmızı) |
 | `AGY_PULSE_ALERT_THRESHOLD_PCT` | `15` | Kritik kota kırmızı nabız animasyonu eşiği (`≤ %15`) |
@@ -187,6 +190,7 @@ Yapay zekâ ajanları (`gemini`, `claude`, `codex`) stdio üzerinden bu araçlar
 
 - **Sıfır Dış Ağ Trafiği:** Bu sunucu ve enjekte edilen tarayıcı scripti, hiçbir harici sunucuya veya üçüncü taraf analitik servisine veri göndermez.
 - **Sadece Yerel İletişim (Localhost-Only):** Tüm iletişim yerel makinedeki `127.0.0.1` soketleri ve `language_server` süreciyle sınırlıdır.
+- **Yerel CDP Güvenlik Dengesi (`--remote-debugging-port=0`):** Varsayılan launcher kurulumunun eklediği `--remote-debugging-port=0` bayrağı, `127.0.0.1` loopback arayüzü üzerinde bir DevTools soketi açar. Bu soket ağa kapalı olsa da aynı işletim sistemi kullanıcısı altında çalışan diğer yerel süreçlerin CDP üzerinden (`Runtime.evaluate`) uygulamaya bağlanabilmesine olanak tanır — Antigravity Desktop `2.33.0+` sürümünde uzak hata ayıklamanın varsayılan olarak kapatılmasının nedeni de budur. Sıkı süreç izolasyonu isteyen ve yerel CDP hata ayıklama portunu açmadan yalnızca MCP kota araçları ile arka plan masaüstü bildirimlerini kullanmak isteyen kullanıcılar `./install.sh --no-cdp-launcher` komutuyla kurulum yapabilir (bu modda CDP launcher geçersiz kılmaları oluşturulmaz ve varsayılan `AGY_UI_INJECTION_ENABLED=true` ayarı korunur). Arka plan izleyici iş parçacığını (`UIWatcherThread`) ve masaüstü bildirimlerini de durdurup yalnızca isteğe bağlı MCP stdio araçlarının (`get_quota_status`, `clean_scratch_cache` vb.) çalışmasını istiyorsanız çalışma zamanında `AGY_UI_INJECTION_ENABLED=false` ayarlayın. Ayrıntılar için [`SECURITY.md`](./SECURITY.md) dosyasına bakın.
 - **Stdout Akış İzolasyonu:** JSON-RPC 2.0 protokol bütünlüğünü bozmamak için `stdout` akışına kesinlikle log basılmaz; tüm operasyonel loglar `sys.stderr` üzerinden yürütülür.
 - **Sıfır İkili Dosya Değişikliği:** Antigravity Desktop ikili dosyalarına (`binary patch`) dokunulmaz; yalnızca Chrome DevTools Protocol (`Runtime.evaluate`) üzerinden arayüz manipülasyonu yapılır.
 
