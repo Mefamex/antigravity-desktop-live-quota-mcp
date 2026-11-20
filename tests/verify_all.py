@@ -154,7 +154,9 @@ def main() -> int:
         cdp_status = status2_after.get("cdp_status", {})
         for req_key in ("cdp_available", "reason", "fix_hint", "antigravity_running", "has_remote_debugging_flag"):
             assert req_key in cdp_status, f"cdp_status içinde '{req_key}' alanı eksik!"
-        print(f"• CDP Tanılama: available={cdp_status['cdp_available']}, reason={cdp_status['reason']}")
+        if cdp_status.get("cdp_available"):
+            assert cdp_status.get("antigravity_running") is True, "CDP açıkken antigravity_running True olmalı!"
+        print(f"• CDP Tanılama: available={cdp_status['cdp_available']}, running={cdp_status['antigravity_running']}, reason={cdp_status['reason']}")
         print("[PASS] Otomatik Failover, sürüm (1.2.0) ve cdp_status alanları doğrulandı!")
 
         print("\n" + "=" * 68)

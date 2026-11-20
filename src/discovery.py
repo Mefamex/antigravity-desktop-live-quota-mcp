@@ -110,6 +110,9 @@ def get_antigravity_desktop_process_info() -> dict[str, Any]:
         args = [a for a in raw_cmd.decode("utf-8", errors="ignore").split("\x00") if a]
         if not args:
             continue
+        # Electron/Chromium setproctitle nedeniyle tek string gelen cmdline'ı parçala
+        if len(args) == 1 and " " in args[0]:
+            args = args[0].split()
 
         exe_name = Path(args[0]).name.lower()
         joined = " ".join(args)
