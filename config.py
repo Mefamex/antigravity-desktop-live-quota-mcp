@@ -33,7 +33,7 @@ def _env_bool(key: str, default: bool) -> bool:
 # 1. SERVER IDENTITY
 # ============================================================================
 SERVER_NAME: str = "antigravity-desktop-live-quota-mcp"
-SERVER_VERSION: str = "1.3.0"
+SERVER_VERSION: str = "1.4.0"
 PROTOCOL_VERSION: str = "2025-11-25"
 
 # ============================================================================
