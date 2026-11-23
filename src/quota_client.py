@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import ssl
 import threading
+import time
 import urllib.request
 from typing import Any
 
@@ -25,6 +26,8 @@ RPC_PATH = "/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSumma
 
 _CACHE_LOCK = threading.Lock()
 _CACHED_ENDPOINT: tuple[int, int, str, str] | None = None
+_ARGON_TTL_SEC = 600.0
+_CACHED_ARGON: tuple[float, GroupQuota, int] | None = None
 
 
 def _call_rpc_single(
@@ -119,6 +122,16 @@ def _parse_quota_response(raw_data: dict[str, Any]) -> QuotaReport:
                 buckets=parsed_buckets,
             )
         )
+
+    global _CACHED_ARGON
+    now = time.time()
+    argon_group = next((g for g in parsed_groups if "Argon" in g.display_name), None)
+    with _CACHE_LOCK:
+        if argon_group is not None:
+            _CACHED_ARGON = (now, argon_group, argon_weekly)
+        elif _CACHED_ARGON is not None and (now - _CACHED_ARGON[0]) <= _ARGON_TTL_SEC:
+            parsed_groups.append(_CACHED_ARGON[1])
+            argon_weekly = _CACHED_ARGON[2]
 
     return QuotaReport(
         ok=True,

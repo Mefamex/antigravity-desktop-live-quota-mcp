@@ -99,6 +99,8 @@ def build_injection_js() -> str:
         reattachFrameId: null,
         observer: null,
         lastQuota: null,
+        lastArgonGroup: null,
+        lastArgonAt: 0,
         installedAt: prevInstalledAt,
         history: history
     }};
@@ -295,12 +297,23 @@ def build_injection_js() -> str:
     function applyQuotaResponse(data, seq) {{
         if (!data || seq < state.lastAppliedSeq) return false;
         state.lastAppliedSeq = seq;
-        state.lastQuota = data;
+        const now = Date.now();
+        const ARGON_TTL_MS = 600000;
+        const rawGroups = Array.isArray(data.groups) ? data.groups : [];
+        const argonGroup = rawGroups.find((g) => mapGroupDisplayName(g && g.displayName) === "argon");
+        let mergedData = data;
+        if (argonGroup) {{
+            state.lastArgonGroup = argonGroup;
+            state.lastArgonAt = now;
+        }} else if (state.lastArgonGroup && (now - state.lastArgonAt) <= ARGON_TTL_MS) {{
+            mergedData = Object.assign({{}}, data, {{ groups: [...rawGroups, state.lastArgonGroup] }});
+        }}
+        state.lastQuota = mergedData;
         let curG5h = null;
         let curC5h = null;
         let hasG5h = false;
         let hasC5h = false;
-        for (const g of data.groups || []) {{
+        for (const g of mergedData.groups || []) {{
             const gKey = mapGroupDisplayName(g.displayName);
             for (const b of g.buckets || []) {{
                 if (b.window === "5h") {{
@@ -315,7 +328,6 @@ def build_injection_js() -> str:
                 }}
             }}
         }}
-        const now = Date.now();
         function recordHistory(key, pct) {{
             const arr = state.history[key] || (state.history[key] = []);
             const prev = arr.length > 0 ? arr[arr.length - 1] : null;

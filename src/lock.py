@@ -25,7 +25,9 @@ Solution (Linux Kernel `fcntl.flock` Leader Election):
 
 from __future__ import annotations
 
+import ctypes
 import os
+import sys
 from pathlib import Path
 from typing import IO
 
@@ -93,13 +95,45 @@ class LeaderLock:
             self._is_leader = False
             return False
 
+    @staticmethod
+    def _is_pid_alive(pid: int) -> bool:
+        """Checks whether a process with the given PID is currently alive."""
+        if pid <= 0:
+            return False
+        if sys.platform == "win32":
+            kernel32 = getattr(ctypes, "windll", None)
+            if kernel32 is None:
+                return True
+            process_query_limited_info = 0x1000
+            still_active = 259
+            handle = kernel32.kernel32.OpenProcess(process_query_limited_info, False, pid)
+            if not handle:
+                return ctypes.GetLastError() == 5  # ERROR_ACCESS_DENIED => alive
+            try:
+                exit_code = ctypes.c_ulong()
+                if kernel32.kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                    return exit_code.value == still_active
+                return True
+            finally:
+                kernel32.kernel32.CloseHandle(handle)
+        try:
+            os.kill(pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except OSError:
+            return False
+
     def read_holder_pid(self) -> int | None:
-        """Reads the PID of the leader process currently holding the lock."""
+        """Reads the PID of the live leader process currently holding the lock."""
         try:
             if self.lock_path.exists():
                 content = self.lock_path.read_text(encoding="utf-8").strip()
                 if content.isdigit():
-                    return int(content)
+                    pid = int(content)
+                    return pid if self._is_pid_alive(pid) else None
         except OSError:
             pass
         return None

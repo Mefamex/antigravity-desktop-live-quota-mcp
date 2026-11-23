@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import config
-from src import discovery, lock, windows_setup
+from src import discovery, lock, quota_client, ui_payload, windows_setup
 
 
 class TestWindowsConfig(unittest.TestCase):
@@ -72,6 +72,16 @@ class TestLeaderLockWindowsFallback(unittest.TestCase):
                 self.assertFalse(mgr.try_acquire())
                 self.assertFalse(mgr.is_leader)
                 mgr.release()
+
+    def test_read_holder_pid_filters_dead_pid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            lock_path = Path(tmp) / "test.lock"
+            lock_path.write_text("99999999\n", encoding="utf-8")
+            mgr = lock.LeaderLock(lock_path=lock_path)
+            with patch.object(lock.LeaderLock, "_is_pid_alive", return_value=False):
+                self.assertIsNone(mgr.read_holder_pid())
+            with patch.object(lock.LeaderLock, "_is_pid_alive", return_value=True):
+                self.assertEqual(mgr.read_holder_pid(), 99999999)
 
 
 class TestWindowsAndV234Discovery(unittest.TestCase):
@@ -183,6 +193,39 @@ class TestWindowsSetup(unittest.TestCase):
             res = windows_setup.enable_cdp_windows()
         self.assertTrue(res["ok"])
         self.assertEqual(res["patched"], ["Desktop\\Antigravity.lnk"])
+
+
+class TestArgonStability(unittest.TestCase):
+    def test_quota_client_preserves_argon_group_within_ttl(self) -> None:
+        with patch.object(quota_client, "_CACHED_ARGON", None):
+            three_groups = {
+                "response": {
+                    "groups": [
+                        {"displayName": "Gemini Models", "buckets": [{"window": "weekly", "remainingFraction": 0.89}]},
+                        {"displayName": "Claude and GPT models", "buckets": [{"window": "weekly", "remainingFraction": 0.50}]},
+                        {"displayName": "Gemini 4 Argon", "buckets": [{"window": "weekly", "remainingFraction": 0.95}]},
+                    ]
+                }
+            }
+            r1 = quota_client._parse_quota_response(three_groups)
+            self.assertEqual(r1.argon_weekly_pct, 95)
+
+            two_groups = {
+                "response": {
+                    "groups": [
+                        {"displayName": "Gemini Models", "buckets": [{"window": "weekly", "remainingFraction": 0.99}]},
+                        {"displayName": "Claude and GPT models", "buckets": [{"window": "weekly", "remainingFraction": 0.50}]},
+                    ]
+                }
+            }
+            r2 = quota_client._parse_quota_response(two_groups)
+            self.assertEqual(r2.argon_weekly_pct, 95)
+            self.assertTrue(any("Argon" in g.display_name for g in r2.groups))
+
+    def test_ui_payload_renders_with_argon_ttl_merge(self) -> None:
+        js = ui_payload.build_injection_js()
+        self.assertIn("lastArgonGroup", js)
+        self.assertIn("ARGON_TTL_MS", js)
 
 
 if __name__ == "__main__":
