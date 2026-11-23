@@ -10,6 +10,8 @@ antigravity-quota-mcp — Central Configuration Module (config.py)
 from __future__ import annotations
 
 import os
+import sys
+import tempfile
 from pathlib import Path
 
 
@@ -39,16 +41,32 @@ PROTOCOL_VERSION: str = "2025-11-25"
 # ============================================================================
 HOME_DIR: Path = Path.home()
 
+
+def _default_antigravity_user_data_dir() -> Path:
+    """Resolves the Antigravity user data directory for the current OS."""
+    if sys.platform == "win32":
+        appdata = Path(os.environ.get("APPDATA") or (HOME_DIR / "AppData" / "Roaming"))
+        for candidate in ("Antigravity", "antigravity"):
+            path = appdata / candidate
+            if path.exists():
+                return path
+        return appdata / "Antigravity"
+    return HOME_DIR / ".config" / "Antigravity"
+
+
+ANTIGRAVITY_USER_DATA_DIR: Path = _default_antigravity_user_data_dir()
+ANTIGRAVITY_LOGS_DIR: Path = ANTIGRAVITY_USER_DATA_DIR / "logs"
+
 # File where Antigravity Desktop writes the active Chrome DevTools port
 DEVTOOLS_PORT_FILE: Path = Path(
     os.environ.get("AGY_DEVTOOLS_PORT_FILE")
     or os.environ.get("AGY_BROWSER_ACTIVE_PORT_FILE")
-    or str(HOME_DIR / ".config" / "Antigravity" / "DevToolsActivePort")
+    or str(ANTIGRAVITY_USER_DATA_DIR / "DevToolsActivePort")
 )
 
-# Kernel lock file (stored on tmpfs) ensuring only a single process performs
-# UI injection during multi-instance execution
-_runtime_dir = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+# Kernel lock file (stored on tmpfs / temp dir) ensuring only a single process
+# performs UI injection during multi-instance execution
+_runtime_dir = os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()
 LOCK_FILE_PATH: Path = Path(_runtime_dir) / "antigravity-desktop-live-quota.lock"
 
 # ============================================================================

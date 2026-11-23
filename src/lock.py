@@ -25,10 +25,19 @@ Solution (Linux Kernel `fcntl.flock` Leader Election):
 
 from __future__ import annotations
 
-import fcntl
 import os
 from pathlib import Path
 from typing import IO
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # type: ignore[assignment]
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None  # type: ignore[assignment]
 
 import config
 from src.logger import get_logger
@@ -62,7 +71,13 @@ class LeaderLock:
             if self._fp is None:
                 self._fp = open(self.lock_path, "a+", encoding="utf-8")
 
-            fcntl.flock(self._fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if fcntl is not None:
+                fcntl.flock(self._fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            elif msvcrt is not None:
+                self._fp.seek(0)
+                msvcrt.locking(self._fp.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                raise OSError("No file locking backend available on this platform.")
 
             # Lock acquired; write our PID into the lock file
             self._fp.seek(0)
@@ -94,7 +109,11 @@ class LeaderLock:
         if self._fp is not None:
             try:
                 if self._is_leader:
-                    fcntl.flock(self._fp.fileno(), fcntl.LOCK_UN)
+                    if fcntl is not None:
+                        fcntl.flock(self._fp.fileno(), fcntl.LOCK_UN)
+                    elif msvcrt is not None:
+                        self._fp.seek(0)
+                        msvcrt.locking(self._fp.fileno(), msvcrt.LK_UNLCK, 1)
                     log.info("UI leadership lock released.")
             except OSError:
                 pass

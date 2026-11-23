@@ -33,6 +33,7 @@ from src.notifier import is_notify_send_available, send_desktop_notification
 from src.quota_client import fetch_live_quota
 from src.scratch_cleaner import clean_scratch_cache
 from src.ui_watcher import UIWatcherThread, inject_into_all_windows
+from src.windows_setup import enable_cdp_windows
 
 log = get_logger("main")
 
@@ -93,6 +94,13 @@ def _run_cli_test_notify() -> int:
     return 0 if ok else 1
 
 
+def _run_cli_enable_cdp_windows() -> int:
+    """Patches Windows Antigravity Desktop `.lnk` shortcuts with `--remote-debugging-port=0`."""
+    res = enable_cdp_windows()
+    sys.stdout.write(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
+    return 0 if res.get("ok") else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Antigravity Desktop Live Quota Indicator and MCP Server"
@@ -118,6 +126,11 @@ def main() -> int:
         help="Send a sample test notification to the desktop.",
     )
     parser.add_argument(
+        "--enable-cdp-windows",
+        action="store_true",
+        help="Patch Windows Antigravity Desktop shortcuts (.lnk) with --remote-debugging-port=0.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Report files and sizes to be cleaned without deleting anything.",
@@ -141,6 +154,9 @@ def main() -> int:
 
     if args.test_notify:
         return _run_cli_test_notify()
+
+    if args.enable_cdp_windows:
+        return _run_cli_enable_cdp_windows()
 
     # Default: MCP Stdio Server + Background UI Watcher with Leader Election
     leader_lock = LeaderLock()
