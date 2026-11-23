@@ -6,9 +6,9 @@
 | **Website**  | [https://www.mefamex.com](https://www.mefamex.com)            |
 | **License**  | MIT                                                           |
 | **Created**  | 2026-11-07                                                    |
-| **Updated**  | 2026-11-21                                                    |
+| **Updated**  | 2026-11-23                                                    |
 | **Stack**    | Python ≥ 3.10 (Sıfır Harici Bağımlılık / Pure Python Stdlib)  |
-| **Platform** | Linux (Arch Linux, KDE Plasma 6, Wayland, X11)                |
+| **Platform** | Linux (Arch, Ubuntu, Wayland/X11) & Windows 11                |
 | **Status**   | ✅ Production Ready                                            |
 
 Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan canlı yapay zekâ model kotalarını, sıfırlanma geri sayımlarını ve aktif seçili modeli doğrudan pencerenin üst başlık çubuğuna (`[data-testid="title-menu-bar"]`) enjekte eden, sıfır bağımlılıklı hafif bir Model Context Protocol (MCP) sunucusudur. Harici bir sistem servisi veya paket yöneticisi yükü getirmeden yapay zekâ ajanlarına anlık kota telemetrisi sağlar.
@@ -75,7 +75,7 @@ Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan ca
 
 ## 4. Teknoloji Yığını ve Gereksinimler (Tech Stack & Prerequisites)
 
-- **Çalışma Ortamı:** Linux (Arch Linux, Ubuntu, Debian, Fedora vb. — Wayland veya X11).
+- **Çalışma Ortamı:** Linux (Arch Linux, Ubuntu, Debian, Fedora vb. — Wayland veya X11) ve Windows 11 (`v1.4.0+`).
 - **Yorumlayıcı:** Python ≥ 3.10 (Sanal ortam gerektirmez, sistem Python'u ile çalışır).
 - **Hedef Uygulama:** Google Antigravity Desktop (2.0) sürümü.
 - **Harici Bağımlılıklar:** `dependencies = []` (Harici hiçbir `pip` veya `npm` paketi gerekmez).
@@ -97,6 +97,15 @@ make install
 ```
 
 > **Antigravity Desktop ≥ 2.33.0 Notu:** Google, Antigravity `2.33.0` sürümünden itibaren varsayılan `--remote-debugging-port=0` anahtarını kapattı. `make install` (veya tek başına `make enable-cdp`) komutu `sudo` gerektirmeden `~/.local/share/applications/antigravity.desktop` ve `~/.local/bin/antigravity` dosyalarını güncellemelerden etkilenmeyecek şekilde ayarlar (sistemdeki gerçek `antigravity` ikili dosyasını `$PATH` üzerinden dinamik olarak çözer). İlk kurulum sonrası çalışan Antigravity Desktop penceresini bir kez tamamen kapatıp yeniden açmanız yeterlidir. Yerel CDP hata ayıklama portunu açmak istemiyorsanız yalnızca MCP kota araçları ve masaüstü bildirimleri için `./install.sh --no-cdp-launcher` kullanabilirsiniz (bkz. Bölüm 8).
+
+#### Windows 11 Hızlı Başlangıç (`v1.4.0+`)
+```powershell
+python -B main.py --enable-cdp-windows
+# Antigravity Desktop uygulamasını tamamen kapatıp yeniden açın, ardından:
+python -B main.py --status
+python -B main.py --inject
+```
+İsteğe bağlı arka plan otomatik başlatma için `scripts\install-windows-startup.cmd` çalıştırılabilir.
 
 ### 3. Manuel Kurulum Alternatifi
 Dilerseniz `~/.gemini/config/mcp_config.json` dosyası içerisindeki `"mcpServers"` bloğuna doğrudan şu girdiyi ekleyebilirsiniz:

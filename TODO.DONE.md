@@ -4,6 +4,22 @@
 
 ---
 
+### [2026-11-23 23:35] — 31. v1.4.0 Windows Platform Desteği, Antigravity v2.34.0 Uyumluluğu ve Kararlılık İyileştirmeleri (Issues #1, #2)
+- **Windows Çekirdek Uyumluluğu (`config.py`, `src/lock.py`, `src/discovery.py`):**
+  - `LOCK_FILE_PATH` için `tempfile.gettempdir()`, `win32` üzerinde `%APPDATA%\Antigravity` / `antigravity` çözümlemesi eklendi.
+  - `LeaderLock` içine `msvcrt.locking` (`LK_NBLCK`/`LK_UNLCK` + `seek(0)`) fallback'i ve `read_holder_pid()` için OS seviyesi canlı PID doğrulaması (`os.kill` / `OpenProcess` + `GetExitCodeProcess`) eklendi.
+  - `win32` için `CREATE_NO_WINDOW` bayraklı PowerShell CIM (`ConvertTo-Json`) + `netstat -ano -p tcp` süreç/port keşfi ve `get_antigravity_desktop_process_info()` Windows desteği yazıldı.
+- **Antigravity v2.34.0 Token Keşfi & Windows CDP Araçları (`src/discovery.py`, `src/windows_setup.py`, `scripts/`, `main.py`):**
+  - `--read_host_bridge_token_from_stdin` kullanan v2.34.0+ süreçleri için CDP DOM (`window.__APP_CONFIG__?.csrfToken` / `location.hash`) ve `main.log` / `language_server.log` fallback'i eklendi.
+  - `scripts/enable-cdp.ps1`, `main.py --enable-cdp-windows` ve `scripts/install-windows-startup.cmd` eklendi.
+- **Argon Grubu Kararlılığı (`src/ui_payload.py`, `src/quota_client.py`):**
+  - Aralıklı 2 gruplu backend yanıtlarında `Ar:` rozetinin kaybolmasını önlemek için son bilinen `Gemini 4 Argon` grubu 600 saniye (10 dk) TTL ile korundu.
+- **Test, Sürüm ve Yayın:**
+  - `tests/test_windows_and_v234.py` (13 birim testi, 13/13 `OK`) eklendi; `@trotthuvud` tarafından Windows 11 + Antigravity v2.34.0 üzerinde doğrulandı.
+  - `config.py`, `pyproject.toml`, `.codex-plugin/plugin.json` ve `tests/verify_all.py` `1.4.0` sürümüne güncellendi; `v1.4.0` tag ve GitHub Release yayınlanarak `#1` ve `#2` kapatıldı.
+
+---
+
 ### [2026-11-21 02:10] — 30. v1.3.0 Kapsamlı Denetim Düzeltmeleri, Hız Sınırlama, Dinamik Model Eşleme ve İngilizce Kod Tabanı
 - **RFC-6455 WebSocket Tam Çerçeve Uyumu (`src/cdp_client.py`, `tests/verify_all.py`):**
   - `_recv_ws_text_frame()` içine parçalı çerçeve (`FIN=0` / `0x00` continuation) birleştirme, `0x08` Close yönetimi ve sunucu `0x09` Ping çerçevelerine maskeli `0x0A` Pong (`_send_ws_control_frame()`) yanıtı eklendi.
