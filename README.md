@@ -1,23 +1,43 @@
 # antigravity-desktop-live-quota-mcp
 
-|              |                                                               |
-| ------------ | ------------------------------------------------------------- |
-| **Author**   | [Mefamex (Mehmet Akif Akkoç)](https://github.com/Mefamex)      |
-| **Website**  | [https://www.mefamex.com](https://www.mefamex.com)            |
-| **License**  | MIT                                                           |
-| **Created**  | 2026-11-07                                                    |
-| **Updated**  | 2026-11-23                                                    |
-| **Stack**    | Python ≥ 3.10 (Sıfır Harici Bağımlılık / Pure Python Stdlib)  |
-| **Platform** | Linux (Arch, Ubuntu, Wayland/X11) & Windows 11                |
-| **Status**   | ✅ Production Ready                                            |
+**English** · [Türkçe](./README.tr.md)
 
-Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan canlı yapay zekâ model kotalarını, sıfırlanma geri sayımlarını ve aktif seçili modeli doğrudan pencerenin üst başlık çubuğuna (`[data-testid="title-menu-bar"]`) enjekte eden, sıfır bağımlılıklı hafif bir Model Context Protocol (MCP) sunucusudur. Harici bir sistem servisi veya paket yöneticisi yükü getirmeden yapay zekâ ajanlarına anlık kota telemetrisi sağlar.
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/Mefamex/antigravity-desktop-live-quota-mcp)](https://github.com/Mefamex/antigravity-desktop-live-quota-mcp/releases)
+[![Python](https://img.shields.io/badge/Python-%E2%89%A53.10-blue.svg)](https://www.python.org/)
+[![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](./pyproject.toml)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%2011-lightgrey.svg)](#4-tech-stack--prerequisites)
+
+**See your AI model quotas at a glance — right in the Antigravity title bar.**
+
+Google Antigravity Desktop hides your Gemini, Claude and GPT quotas behind menus. This tool puts them where you can always see them: a live badge in the window's title bar with remaining percentages, reset countdowns and the model you're using right now. It is also a zero-dependency MCP server, so your AI agents can query the same quota data.
+
+<p align="center">
+  <img src="assets/preview.png" alt="Live quota badge in the Antigravity Desktop title bar" width="100%">
+</p>
+
+```bash
+git clone https://github.com/Mefamex/antigravity-desktop-live-quota-mcp.git
+cd antigravity-desktop-live-quota-mcp
+make install   # then fully restart Antigravity Desktop once
+```
+
+> **What is Antigravity?** [Google Antigravity](https://antigravity.google/) is Google's agentic IDE / desktop app for working with AI coding agents (Gemini, Claude, GPT). Its usage is limited by rolling 5-hour and weekly quotas per model group.
+
+|              |                                                              |
+| ------------ | ------------------------------------------------------------ |
+| **Author**   | [Mefamex (Mehmet Akif Akkoç)](https://github.com/Mefamex)    |
+| **Website**  | [https://www.mefamex.com](https://www.mefamex.com)           |
+| **License**  | MIT                                                          |
+| **Stack**    | Python ≥ 3.10, pure standard library (zero dependencies)     |
+| **Platform** | Linux (Arch, Ubuntu, Wayland/X11) & Windows 11               |
+| **Status**   | ✅ Production ready (v1.4.0)                                  |
 
 ---
 
-## 1. Mimari ve Görsel Önizleme (Architecture & Preview)
+## 1. Architecture & Preview
 
-### Sistem Veri Akış Şeması
+### Data Flow
 
 ```text
 [ Antigravity Desktop Window ]
@@ -25,90 +45,88 @@ Google Antigravity Desktop (2.0) uygulamasında menüler altında gizli kalan ca
          ├── DevToolsActivePort ──> [ discovery.py ] ──> [ cdp_client.py (RFC-6455) ]
          │                                                      │
          └── language_server   ──> [ quota_client.py ] ────────┴──> [ title-menu-bar ]
-              (ConnectRPC)           (forceRefresh=true)               (Canlı Rozet)
+              (ConnectRPC)           (forceRefresh=true)               (live badge)
 ```
 
-### Arayüz Önizlemesi
+The badge is injected into the title bar (`[data-testid="title-menu-bar"]`) over the Chrome DevTools Protocol. Quota data comes from Antigravity's own local `language_server` — nothing leaves your machine.
 
-<p align="center">
-  <img src="assets/preview.png" alt="Antigravity Desktop Live Quota Badge" width="100%">
-</p>
+### Key Metrics
 
-### Kritik Mimari Metrikleri
-
-- **Soğuk Başlangıç Gecikmesi:** `~56 ms — 68 ms` (Resmi Python MCP SDK'sına göre ~6 kat daha hızlı).
-- **Bellek Tüketimi:** `~9 — 12 MB RAM` (Ekstra runtime veya sanal ortam yükü yoktur).
-- **Harici Bağımlılık:** `0` (Yalnızca Python standart kütüphanesi: `socket`, `fcntl`, `struct`, `urllib`).
-- **Arayüz Etki Alanı:** `~400 px` genişlik, `24 px` yükseklik (Başlık çubuğu kontrollerini sıkıştırmaz).
+- **Cold start:** `~56–68 ms` (about 6× faster than the official Python MCP SDK).
+- **Memory:** `~9–12 MB RAM` (no extra runtime or virtualenv).
+- **External dependencies:** `0` (standard library only: `socket`, `fcntl`, `struct`, `urllib`).
+- **UI footprint:** `~400 px` wide, `24 px` tall — does not squeeze the title bar controls.
 
 ---
 
-## 2. Belge Haritası (Repository Doc Map)
+## 2. Repository Doc Map
 
-| Belge | Amacı ve Sorumluluğu |
+| File | Purpose |
 | :--- | :--- |
-| [`README.md`](./README.md) | Proje vitrini, mimari detaylar ve operasyonel kullanım kılavuzu |
-| [`NOTES.md`](./NOTES.md) | Dahili teknik bellek, elenen yöntemler, sistem kısıtları ve Git referansı |
-| [`TODO.md`](./TODO.md) | 5 seviyeli görev takibi, aktif sprint ve gelecek yol haritası |
-| [`TODO.DONE.md`](./TODO.DONE.md) | Tamamlanan ve doğrulanan adımların ters kronolojik teknik günlüğü |
-| [`config.py`](./config.py) | 3 katmanlı ayar motoru (`Ortam Değişkeni > config.py > Varsayılanlar`) |
-| [`Makefile`](./Makefile) | Marmelab self-documenting yaşam döngüsü yöneticisi (6 zorunlu hedef + testler) |
-| [`install.sh`](./install.sh) | Tek komutla `mcp_config.json` kaydı ve otomatik enjeksiyon betiği |
+| [`README.md`](./README.md) | Project overview, architecture and usage guide (this file) |
+| [`README.tr.md`](./README.tr.md) | Turkish version of this README |
+| [`SECURITY.md`](./SECURITY.md) | Security model and the local CDP trade-off |
+| [`NOTES.md`](./NOTES.md) | Internal technical memory, rejected approaches, constraints (Turkish) |
+| [`TODO.md`](./TODO.md) / [`TODO.DONE.md`](./TODO.DONE.md) | Roadmap and completed-work log (Turkish) |
+| [`config.py`](./config.py) | 3-layer settings engine (`ENV > config.py > defaults`) |
+| [`Makefile`](./Makefile) | Self-documenting lifecycle commands (`make help`) |
+| [`install.sh`](./install.sh) | One-command MCP registration and badge injection |
 
 ---
 
-## 3. Temel Yetenekler ve Özellikler (Key Features)
+## 3. Key Features
 
-* **5 Kota Türünün Tam Entegrasyonu:** `⚡G` (Gemini Flash/Pro/Neon/Hydrogen/Orchestrator 5h ve haftalık), `Ar` (Gemini 4 Argon haftalık) ve `C` (Claude/GPT 5h ve haftalık) kotalarını eşzamanlı izler.
-* **Dinamik Kalan Süre Sayacı:** Statik etiketler yerine `resetTime` verisinden canlı hesaplanan geri sayımları gösterir (`0:50h`, `6.8d`, `7.0d`). Yerel DOM döngüsü (5 sn) ağ trafiği üretmeden süreyi akıtır.
-* **Dinamik Aktif Model Vurgusu:** Sohbet oturumunda kullanılan modeli API'nin `quota.groups[].description` ve `displayName` alanlarına karşı dinamik olarak eşleştirir (yeni çıkacak modellerin otomatik tanınması için anahtar kelime yedeklemesiyle birlikte) ve ilgili etiketi (`⚡G:`, `Ar:`, `C:`) parlak arka plan kapsülü ve hafif ışıltı ile görsel olarak öne çıkarır.
-* **Anında Zorlamalı Yenileme, Bulut RPC Kısıtlaması ve Uç Nokta Önbelleği:** Rozete tıklandığında `{ forceRefresh: true }` parametresi gönderilerek yerel dil sunucusunun önbelleği tazelenir; monoton sıralama (`fetchSeq`) eski yanıtların taze veriyi ezmesini önler. Arka plan sorguları bulut hız sınırlarına (rate-limit) karşı optimize edilmiştir (`60000 ms` tarayıcı döngüsü, `120 sn` bildirim denetimi ve arayüz rozeti aktifken çift bulut yenilemesinden kaçınma) ve çalışan `language_server` uç noktası (`_CACHED_ENDPOINT`) önbelleklenerek sonraki yerel çağrılar gecikmesiz yanıtlanır.
-* **Tam RFC-6455 WebSocket & Debounce Edilmiş DOM Gözlemcisi:** Harici bağımlılık olmadan parçalı (fragmented) WebSocket çerçevelerini (`0x01`/`0x00`) yeniden birleştirir ve sunucu `Ping`/`Pong` (`0x09`/`0x0A`) ile `Close` (`0x08`) kontrol çerçevelerini tam uyumlu işler. Pencere içi `MutationObserver`, `requestAnimationFrame` ile debounce edilerek React DOM mutasyonlarında gereksiz yeniden enjeksiyon yükünü ortadan kaldırır.
-* **Çift Katmanlı Çakışma Koruması:** Linux çekirdek kilidi (`fcntl.flock`) ile birden fazla pencere/CLI açıldığında tek bir `LEADER` belirlenir. Diğer süreçler `STANDBY` modunda bekler; lider kapanırsa otomatik devir (failover) gerçekleşir.
-* **Adaptif ve Responsive Stil:** HiDPI ve fractional scaling ekranlar için `clamp(6px, 1vw, 12px)` ve `flex-shrink: 0` CSS kuralları ile pencere genişliğine uyum sağlar.
-* **Kova Bazlı Tüketim Hızı & Sıfırlama İzolasyonu (Burn-Rate Analytics):** 5 saatlik Gemini (`g5h`) ve Claude/GPT (`c5h`) kotaları için ayrı geçmiş tamponları tutar; kota `> +%5` oranında dolduğunda ilgili kovanın geçmişini otomatik sıfırlar ve rozet ipucunda saatlik tüketim hızı ile tahmini tükenme süresini (`🔥 ~X%/hr (Est. depletion: ~Ym)`) gösterir.
-* **Kritik Kota & Yenilenme Masaüstü Bildirimleri:** Kota kritik eşiğe (`<= %15`) düştüğünde veya sayaç sıfırlanıp `%90+` seviyesine yenilendiğinde Linux masaüstüne (`notify-send`) 30 dk anti-spam korumalı yerel bildirim gönderir.
-* **Taşınabilir Kurulum & İngilizce Çekirdek Standardizasyonu (`v1.3.0`):** `install.sh`, sistemdeki gerçek `antigravity` ikili dosyasını `$PATH` ve standart yollar üzerinden dinamik olarak çözer (yönetilen sarmalayıcıyı atlayarak özyineleme döngüsünü önler). Tüm kaynak kod, loglar, testler ve arayüz rozet metinleri (`99%`, `Live Quota Status`) İngilizce olarak standartlaştırılmıştır.
-* **Tek Tıkla Scratch Temizliği:** Antigravity brain dizininde biriken geçici oturum kalıntılarını güvenle temizleyen `clean_scratch_cache` aracı ve `make clean-scratch` komutu.
-
----
-
-## 4. Teknoloji Yığını ve Gereksinimler (Tech Stack & Prerequisites)
-
-- **Çalışma Ortamı:** Linux (Arch Linux, Ubuntu, Debian, Fedora vb. — Wayland veya X11) ve Windows 11 (`v1.4.0+`).
-- **Yorumlayıcı:** Python ≥ 3.10 (Sanal ortam gerektirmez, sistem Python'u ile çalışır).
-- **Hedef Uygulama:** Google Antigravity Desktop (2.0) sürümü.
-- **Harici Bağımlılıklar:** `dependencies = []` (Harici hiçbir `pip` veya `npm` paketi gerekmez).
+* **All 5 quota types in one place:** `⚡G` (Gemini Flash/Pro and others, 5-hour and weekly), `Ar` (Gemini Argon, weekly) and `C` (Claude/GPT, 5-hour and weekly), tracked at the same time.
+* **Live reset countdowns:** computed from `resetTime` instead of static labels (`0:50h`, `6.8d`, `7.0d`). A local DOM loop (every 5 s) ticks the timers without any network traffic.
+* **Active model highlight:** the model used in the current chat is matched against the API's `quota.groups[].description` / `displayName` (with keyword fallback so new models are picked up automatically), and its label (`⚡G:`, `Ar:`, `C:`) is highlighted with a bright pill and soft glow.
+* **Click to force refresh:** clicking the badge sends `{ forceRefresh: true }` to refresh the language server's cache. A monotonic sequence (`fetchSeq`) stops stale responses from overwriting fresh data.
+* **Rate-limit friendly:** background polling is tuned to avoid cloud rate limits (`60 s` browser loop, `120 s` notification check, no double refresh while the badge is active), and the working `language_server` endpoint is cached for instant local calls.
+* **Full RFC-6455 WebSocket client, no dependencies:** reassembles fragmented frames and handles `Ping`/`Pong`/`Close` control frames. The in-page `MutationObserver` is debounced with `requestAnimationFrame` to avoid needless re-injection on React re-renders.
+* **Multi-window safe:** an OS file lock (`fcntl.flock`) elects a single `LEADER` when several windows or CLIs run. Others wait in `STANDBY` and take over automatically if the leader exits.
+* **Responsive styling:** `clamp(6px, 1vw, 12px)` and `flex-shrink: 0` keep the badge readable on HiDPI and fractional-scaling displays.
+* **Burn-rate analytics:** separate history buffers for the 5-hour Gemini (`g5h`) and Claude/GPT (`c5h`) buckets. The tooltip shows hourly usage and estimated time to depletion (`🔥 ~X%/hr (Est. depletion: ~Ym)`); a bucket's history resets automatically when its quota refills by more than 5%.
+* **Desktop notifications:** a native notification (`notify-send` on Linux) when a quota drops to a critical level (`≤ 15%`) or refills back to `90%+`, with a 30-minute anti-spam cooldown.
+* **Portable install:** `install.sh` resolves the real `antigravity` binary from `$PATH` and standard locations (skipping the managed wrapper to avoid recursion).
+* **One-click scratch cleanup:** the `clean_scratch_cache` tool and `make clean-scratch` safely remove temporary session leftovers from Antigravity's brain directory.
 
 ---
 
-## 5. Kurulum ve Hızlı Başlangıç (Installation & Quick Start)
+## 4. Tech Stack & Prerequisites
 
-### 1. Depoyu Klonlayın ve Dizine Girin
+- **OS:** Linux (Arch, Ubuntu, Debian, Fedora, … — Wayland or X11) and Windows 11 (`v1.4.0+`).
+- **Interpreter:** Python ≥ 3.10 (system Python is fine, no virtualenv needed).
+- **Target app:** Google Antigravity Desktop 2.x.
+- **External dependencies:** none (`dependencies = []`, no `pip` or `npm` packages).
+
+---
+
+## 5. Installation & Quick Start
+
+### 1. Clone the repository
 ```bash
 git clone https://github.com/Mefamex/antigravity-desktop-live-quota-mcp.git
 cd antigravity-desktop-live-quota-mcp
 ```
 
-### 2. Tek Komutla Otomatik Kurun
+### 2. Install with one command
 ```bash
-# MCP kaydını yapar, izinleri ayarlar, 2.33+ kalıcı CDP launcher'ını kurar ve rozeti enjekte eder
+# Registers the MCP server, sets permissions, installs the persistent CDP launcher (2.33+) and injects the badge
 make install
 ```
 
-> **Antigravity Desktop ≥ 2.33.0 Notu:** Google, Antigravity `2.33.0` sürümünden itibaren varsayılan `--remote-debugging-port=0` anahtarını kapattı. `make install` (veya tek başına `make enable-cdp`) komutu `sudo` gerektirmeden `~/.local/share/applications/antigravity.desktop` ve `~/.local/bin/antigravity` dosyalarını güncellemelerden etkilenmeyecek şekilde ayarlar (sistemdeki gerçek `antigravity` ikili dosyasını `$PATH` üzerinden dinamik olarak çözer). İlk kurulum sonrası çalışan Antigravity Desktop penceresini bir kez tamamen kapatıp yeniden açmanız yeterlidir. Yerel CDP hata ayıklama portunu açmak istemiyorsanız yalnızca MCP kota araçları ve masaüstü bildirimleri için `./install.sh --no-cdp-launcher` kullanabilirsiniz (bkz. Bölüm 8).
+> **Note for Antigravity Desktop ≥ 2.33.0:** starting with `2.33.0`, Google turned off the default `--remote-debugging-port=0` switch. `make install` (or `make enable-cdp` on its own) sets up `~/.local/share/applications/antigravity.desktop` and `~/.local/bin/antigravity` so they survive app updates — no `sudo` needed. After the first install, fully close and reopen Antigravity Desktop once. If you don't want to open the local CDP debugging port, use `./install.sh --no-cdp-launcher` to get only the MCP quota tools and desktop notifications (see [Section 8](#8-security--privacy)).
 
-#### Windows 11 Hızlı Başlangıç (`v1.4.0+`)
+#### Windows 11 quick start (`v1.4.0+`)
 ```powershell
 python -B main.py --enable-cdp-windows
-# Antigravity Desktop uygulamasını tamamen kapatıp yeniden açın, ardından:
+# Fully close and reopen Antigravity Desktop, then:
 python -B main.py --status
 python -B main.py --inject
 ```
-İsteğe bağlı arka plan otomatik başlatma için `scripts\install-windows-startup.cmd` çalıştırılabilir.
+To start it automatically in the background, run `scripts\install-windows-startup.cmd`.
 
-### 3. Manuel Kurulum Alternatifi
-Dilerseniz `~/.gemini/config/mcp_config.json` dosyası içerisindeki `"mcpServers"` bloğuna doğrudan şu girdiyi ekleyebilirsiniz:
+### 3. Manual setup (alternative)
+Add this entry to the `"mcpServers"` block in `~/.gemini/config/mcp_config.json`:
 
 ```json
 "antigravity-desktop-live-quota-mcp": {
@@ -123,89 +141,74 @@ Dilerseniz `~/.gemini/config/mcp_config.json` dosyası içerisindeki `"mcpServer
 
 ---
 
-## 6. Yapılandırma (Configuration Guide)
+## 6. Configuration
 
-[`config.py`](./config.py) dosyası 3 katmanlı ayar önceliği uygular:
+[`config.py`](./config.py) applies 3 layers of settings:
 ```text
-Ortam Değişkeni (ENV)  ──>  config.py Sabitleri  ──>  Kod İçi Güvenli Varsayılanlar
+Environment variable (ENV)  ──>  config.py constants  ──>  safe in-code defaults
 ```
 
-Hassas veriler veya geçici ayarlar kod değiştirilmeden ortam değişkenleri üzerinden ezilebilir:
+Any setting can be overridden with an environment variable, without touching the code:
 
-| Değişken | Varsayılan | Açıklama |
+| Variable | Default | Description |
 | :--- | :--- | :--- |
-| `AGY_BROWSER_FETCH_MS` | `60000` | Tarayıcı JS döngüsünün yerel kota sorgulama periyodu (milisaniye) |
-| `AGY_WATCHER_CHECK_SEC` | `8` | Lider sürecin pencere varlığını ve rozet durumunu denetleme sıklığı (saniye) |
-| `AGY_WATCHER_NOTIFY_SEC` | `120` | Lider sürecin masaüstü bildirimleri için kota kontrol sıklığı (saniye) |
-| `AGY_UI_INJECTION_ENABLED` | `true` | Arka plan izleyici iş parçacığını (`UIWatcherThread`) kontrol eder; `false` yapılırsa hem otomatik arayüz rozeti enjeksiyonu hem de arka plan masaüstü bildirimleri devre dışı kalır, yalnızca isteğe bağlı MCP stdio araçları çalışır |
-| `AGY_THRESHOLD_HIGH` | `50` | Yeşil gösterge eşik yüzdesi (`> %50`) |
-| `AGY_THRESHOLD_LOW` | `20` | Sarı gösterge eşik yüzdesi (`> %20`, altı kırmızı) |
-| `AGY_PULSE_ALERT_THRESHOLD_PCT` | `15` | Kritik kota kırmızı nabız animasyonu eşiği (`≤ %15`) |
-| `AGY_ENABLE_PULSE_ALERT` | `true` | Nabız animasyonunu etkinleştirme bayrağı |
-| `AGY_ENABLE_NOTIFICATIONS` | `true` | Linux `notify-send` masaüstü bildirimlerini etkinleştirir |
-| `AGY_NOTIFY_THRESHOLD_PCT` | `15` | Kritik kota masaüstü bildirimi eşik yüzdesi (`≤ %15`) |
-| `AGY_NOTIFY_COOLDOWN_MIN` | `30` | Aynı kota havuzu için ardışık uyarılar arası bekleme süresi (dakika) |
-| `AGY_ENABLE_RESET_NOTIFY` | `true` | Kota sıfırlanıp `%90+` seviyesine döndüğünde yenilenme bildirimi gönderir |
+| `AGY_BROWSER_FETCH_MS` | `60000` | How often the in-page JS loop polls the local quota (ms) |
+| `AGY_WATCHER_CHECK_SEC` | `8` | How often the leader checks that the window and badge exist (s) |
+| `AGY_WATCHER_NOTIFY_SEC` | `120` | How often the leader checks quotas for desktop notifications (s) |
+| `AGY_UI_INJECTION_ENABLED` | `true` | Controls the background watcher thread (`UIWatcherThread`). `false` disables both automatic badge injection and background notifications; only the on-demand MCP stdio tools keep working |
+| `AGY_THRESHOLD_HIGH` | `50` | Green indicator threshold (`> 50%`) |
+| `AGY_THRESHOLD_LOW` | `20` | Yellow indicator threshold (`> 20%`, red below) |
+| `AGY_PULSE_ALERT_THRESHOLD_PCT` | `15` | Critical quota red pulse animation threshold (`≤ 15%`) |
+| `AGY_ENABLE_PULSE_ALERT` | `true` | Enables the pulse animation |
+| `AGY_ENABLE_NOTIFICATIONS` | `true` | Enables desktop notifications |
+| `AGY_NOTIFY_THRESHOLD_PCT` | `15` | Critical quota notification threshold (`≤ 15%`) |
+| `AGY_NOTIFY_COOLDOWN_MIN` | `30` | Cooldown between repeated alerts for the same quota pool (min) |
+| `AGY_ENABLE_RESET_NOTIFY` | `true` | Sends a notification when a quota refills to `90%+` |
 
 ---
 
-## 7. Kullanım ve Komutlar (Usage & CLI Reference)
+## 7. Usage & CLI Reference
 
-### 7.1. Terminal ve Makefile Komutları
+### 7.1. Make targets
 
 ```bash
-# Kullanılabilir tüm hedefleri renkli ve açıklamalı listeler
-make help
-
-# Canlı kota raporunu ve açık pencereleri JSON olarak terminale basar
-make status
-
-# Açık olan Antigravity Desktop penceresine rozeti anında zorla enjekte eder
-make inject
-
-# Antigravity 2.33+ için kullanıcı-seviyesi kalıcı CDP launcher override kurar
-make enable-cdp
-
-# Masaüstüne örnek bir kritik kota test bildirimi gönderir
-make test-notify
-
-# Soğuk başlangıç, liderlik kilidi, failover ve enjeksiyon testlerini koşturur
-make test
-
-# Commit/Push öncesi derleme kalıntılarını temizler ve test zincirini doğrular
-make verify
-
-# Ortamdaki bytecode ve önbellek kalıntılarını siler
-make clean
-
-# Antigravity brain scratch/ geçici oturum dosyalarını temizler
-make clean-scratch
+make help           # List all targets with descriptions
+make status         # Print the live quota report and open windows as JSON
+make inject         # Force-inject the badge into the open Antigravity window
+make enable-cdp     # Install the user-level persistent CDP launcher (2.33+)
+make test-notify    # Send a sample critical-quota desktop notification
+make test           # Run cold start, leader lock, failover and injection tests
+make verify         # Clean build leftovers and run the full test chain (pre-commit/push)
+make clean          # Remove bytecode and cache leftovers
+make clean-scratch  # Remove Antigravity brain scratch/ temporary session files
 ```
 
-### 7.2. Sunulan Model Context Protocol (MCP) Araçları
+### 7.2. MCP tools
 
-Yapay zekâ ajanları (`gemini`, `claude`, `codex`) stdio üzerinden bu araçları çağırabilir:
+AI agents (`gemini`, `claude`, `codex`, …) can call these tools over stdio:
 
-| Araç Adı | Parametreler | Görev ve Açıklama |
+| Tool | Parameters | What it does |
 | :--- | :--- | :--- |
-| `get_quota_status` | `include_raw: bool`<br>`force_refresh: bool` | Gemini, Claude/GPT ve Argon kota yüzdelerini, kalan sıfırlanma sürelerini ve ham language_server çıktısını döndürür. |
-| `reinject_badge` | `force: bool` | Antigravity Desktop penceresindeki rozeti yeniden oluşturur ve tıklandığı andaki verilerle tazeler. |
-| `get_instance_status` | *(yok)* | Sürecin PID numarasını, `LEADER` / `STANDBY` rolünü ve aktif kilit dosya yolunu bildirir. |
-| `clean_scratch_cache` | `dry_run: bool`<br>`older_than_hours: float` | Antigravity brain altındaki geçici oturum scratch dosyalarını güvenle temizler. |
+| `get_quota_status` | `include_raw: bool`<br>`force_refresh: bool` | Returns Gemini, Claude/GPT and Argon quota percentages, time until reset, and optionally the raw language_server output. |
+| `reinject_badge` | `force: bool` | Rebuilds the badge in the Antigravity Desktop window and refreshes it with current data. |
+| `get_instance_status` | *(none)* | Reports the process PID, its `LEADER` / `STANDBY` role and the active lock file path. |
+| `clean_scratch_cache` | `dry_run: bool`<br>`older_than_hours: float` | Safely removes temporary scratch files under Antigravity's brain directory. |
 
 ---
 
-## 8. Güvenlik, Gizlilik ve Kırmızı Çizgiler (Safety & Privacy)
+## 8. Security & Privacy
 
-- **Sıfır Dış Ağ Trafiği:** Bu sunucu ve enjekte edilen tarayıcı scripti, hiçbir harici sunucuya veya üçüncü taraf analitik servisine veri göndermez.
-- **Sadece Yerel İletişim (Localhost-Only):** Tüm iletişim yerel makinedeki `127.0.0.1` soketleri ve `language_server` süreciyle sınırlıdır.
-- **Yerel CDP Güvenlik Dengesi (`--remote-debugging-port=0`):** Varsayılan launcher kurulumunun eklediği `--remote-debugging-port=0` bayrağı, `127.0.0.1` loopback arayüzü üzerinde bir DevTools soketi açar. Bu soket ağa kapalı olsa da aynı işletim sistemi kullanıcısı altında çalışan diğer yerel süreçlerin CDP üzerinden (`Runtime.evaluate`) uygulamaya bağlanabilmesine olanak tanır — Antigravity Desktop `2.33.0+` sürümünde uzak hata ayıklamanın varsayılan olarak kapatılmasının nedeni de budur. Sıkı süreç izolasyonu isteyen ve yerel CDP hata ayıklama portunu açmadan yalnızca MCP kota araçları ile arka plan masaüstü bildirimlerini kullanmak isteyen kullanıcılar `./install.sh --no-cdp-launcher` komutuyla kurulum yapabilir (bu modda CDP launcher geçersiz kılmaları oluşturulmaz ve varsayılan `AGY_UI_INJECTION_ENABLED=true` ayarı korunur). Arka plan izleyici iş parçacığını (`UIWatcherThread`) ve masaüstü bildirimlerini de durdurup yalnızca isteğe bağlı MCP stdio araçlarının (`get_quota_status`, `clean_scratch_cache` vb.) çalışmasını istiyorsanız çalışma zamanında `AGY_UI_INJECTION_ENABLED=false` ayarlayın. Ayrıntılar için [`SECURITY.md`](./SECURITY.md) dosyasına bakın.
-- **Stdout Akış İzolasyonu:** JSON-RPC 2.0 protokol bütünlüğünü bozmamak için `stdout` akışına kesinlikle log basılmaz; tüm operasyonel loglar `sys.stderr` üzerinden yürütülür.
-- **Sıfır İkili Dosya Değişikliği:** Antigravity Desktop ikili dosyalarına (`binary patch`) dokunulmaz; yalnızca Chrome DevTools Protocol (`Runtime.evaluate`) üzerinden arayüz manipülasyonu yapılır.
+- **No external network traffic:** neither the server nor the injected script sends data to any external server or analytics service.
+- **Localhost only:** all communication stays on `127.0.0.1` sockets and the local `language_server` process.
+- **The local CDP trade-off (`--remote-debugging-port=0`):** the default launcher adds this flag, which opens a DevTools socket on the `127.0.0.1` loopback interface. It is not reachable from the network, but other local processes running as the same OS user could connect to the app over CDP (`Runtime.evaluate`) — which is why Antigravity `2.33.0+` turned remote debugging off by default. If you want strict process isolation, install with `./install.sh --no-cdp-launcher`: no CDP launcher overrides are created, and you still get the MCP quota tools and background notifications. To also stop the background watcher and notifications, set `AGY_UI_INJECTION_ENABLED=false`. See [`SECURITY.md`](./SECURITY.md) for details.
+- **Clean stdout:** nothing is logged to `stdout`, so the JSON-RPC 2.0 stream stays intact; all logs go to `sys.stderr`.
+- **No binary patching:** Antigravity Desktop's binaries are never modified; the UI is changed only through the Chrome DevTools Protocol (`Runtime.evaluate`).
 
 ---
 
-## 9. Lisans ve Katkı (License)
+## 9. License & Contributing
 
-Bu proje **MIT Lisansı** altında açık kaynak olarak yayınlanmıştır.  
-Tüm hakları saklıdır © 2026 [Mefamex](https://www.mefamex.com).
+Released under the **MIT License** — see [`LICENSE`](./LICENSE).
+Issues and pull requests are welcome. If this saves you a few clicks, a ⭐ helps others find it.
+
+© 2026 [Mefamex](https://www.mefamex.com)
